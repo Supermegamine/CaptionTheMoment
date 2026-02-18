@@ -288,7 +288,7 @@ if role == "host":
                             if c['winner']:
                                 st.write("👑 **Winner:**")
                             else:
-                                if st.button("👑", key=f"win_{c['text']}"):
+                                if st.button("👑", key=f"win_{c['id']}"):
                                     _choose_winner_caption(id, c['id'])
                                     st.rerun()
                 else:
