@@ -201,10 +201,10 @@ def _choose_winner_caption(image_id, caption_id):
     sb_admin.table("captions").update({"winner": True}).eq("id", caption_id).execute()
 
 def _finish_game(room_id):
-    sb_admin.table("games").update({"finished": True}).eq("room_id", room_id).execute()
+    sb_admin.table("rooms").update({"finished": True}).eq("room_id", room_id).execute()
 
 def _is_game_finished(room_id):
-    return sb_admin.table("games").select("finished").eq("room_id", room_id).execute()
+    return sb_admin.table("rooms").select("finished").eq("room_id", room_id).execute()
 
 # --- Main UI ---
 room_id = _get_param("room_id", None)
