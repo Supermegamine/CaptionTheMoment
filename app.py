@@ -55,8 +55,9 @@ def save_image_db(room_id: str, img_id: str, filename: str, storage_path: str, p
     # handle errors as above
 
 def list_room_images(room_id: str) -> List[Dict]:
-    res = sb_admin.table("images").select("id,filename,storage_path,public_url").eq("room_id", room_id).order("uploaded_at", {"ascending": True}).execute()
-    # extract rows robustly:
+    builder = sb_admin.table("images").select("id,filename,storage_path,public_url").eq("room_id", room_id)
+    builder = _apply_order(builder, "uploaded_at", ascending=True)
+    res = builder.execute()
     rows = getattr(res, "data", None) or res.get("data", None) or res
     return rows or []
 
@@ -66,7 +67,9 @@ def add_caption_db(image_id: str, player_name: str, text: str):
     # check errors
 
 def get_captions_for_image(image_id: str) -> List[Dict]:
-    res = sb_admin.table("captions").select("player_name,text,created_at").eq("image_id", image_id).order("created_at", {"ascending": True}).execute()
+    builder = sb_admin.table("captions").select("player_name,text,created_at").eq("image_id", image_id)
+    builder = _apply_order(builder, "created_at", ascending=True)
+    res = builder.execute()
     rows = getattr(res, "data", None) or res.get("data", None) or res
     return rows or []
 
@@ -79,6 +82,7 @@ def delete_image_db(image_id: str):
     _ = sb_admin.table("images").delete().eq("id", image_id).execute()
     _ = sb_admin.table("captions").delete().eq("image_id", image_id).execute()
     return storage_path
+
 # --- Upload function (no debug) ---
 def upload_image(room_id, uploaded_file):
     """Upload an image to Supabase. Returns (img_id, filename, storage_path, public_url, success)."""
@@ -128,6 +132,22 @@ def upload_image(room_id, uploaded_file):
 
     return img_id, original_name, storage_path, public_url, True
 
+def _apply_order(builder, column: str, ascending = True):
+    """
+    Accepts a select/Builder-like object and attempts to call .order() in a way
+    compatible with multiple supabase-py versions.
+    Returns the builder (chained).
+    """
+    try:
+        # preferred: keyword arg style
+        return builder.order(column, ascending= True)
+    except TypeError:
+        try:
+            # fallback: pass options dict as second positional arg (older style)
+            return builder.order(column, {"ascending": ascending})
+        except Exception:
+            # last-resort: try calling with just the column (no ordering options)
+            return builder.order(column)
 # --- URL parameter helpers ---
 def _get_param(key, default=None):
     params = st.query_params
@@ -220,8 +240,6 @@ if role == "host":
             with right:
                 if st.button("Delete", key=f"del_{img['id']}"):
                     storage_path = delete_image_db(img["id"])
-                    if storage_path:
-                        delete_from_supabase(storage_path)
                     st.rerun()
 
 # Player UI
