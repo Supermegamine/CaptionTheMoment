@@ -1,24 +1,24 @@
-from uuid import uuid4
-from pathlib import Path
-import io
 import os
-import streamlit as st
+import io
+import json
+from uuid import uuid4
+from datetime import datetime
+from pathlib import Path
 
+import streamlit as st
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from supabase import create_client
 
-# --- Configuration ---
+# Page config must come after importing streamlit
 st.set_page_config(page_title="Caption The Moment", layout="wide")
-secrets = st.secrets
 
-# read secrets from environment (Render) with fallbacks to st.secrets (local dev)
+# Now safely read env vars (Render provides these as env vars)
 SUPABASE_URL = os.getenv("SUPABASE_URL") or (st.secrets.get("supabase", {}).get("url") if hasattr(st, "secrets") else None)
 SUPABASE_KEY = os.getenv("SUPABASE_KEY") or (st.secrets.get("supabase", {}).get("key") if hasattr(st, "secrets") else None)
 POSTGRES_URI = os.getenv("POSTGRES_URI") or (st.secrets.get("postgres", {}).get("uri") if hasattr(st, "secrets") else None)
 SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "images")
-APP_BASE_URL = os.getenv("APP_BASE_URL", "https://captionthemoment.onrender.com/")
-
+APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8501")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- Database helpers ---
