@@ -11,16 +11,11 @@ from supabase import create_client
 st.set_page_config(page_title="Caption The Moment", layout="wide")
 secrets = st.secrets
 
-try:
-    SUPABASE_URL = secrets["supabase"]["url"]
-    SUPABASE_KEY = secrets["supabase"]["key"]
-    POSTGRES_URI = secrets["postgres"]["uri"]
-except Exception:
-    st.error("Missing required secrets. Please set supabase.url, supabase.key and postgres.uri in Streamlit secrets.")
-    st.stop()
-
-APP_BASE_URL = secrets.get("app", {}).get("url", "http://localhost:8501")
-SUPABASE_BUCKET = "images"
+SUPABASE_URL = os.getenv("SUPABASE_URL") or (st.secrets.get("supabase", {}).get("url") if hasattr(st, "secrets") else None)
+SUPABASE_KEY = os.getenv("SUPABASE_KEY") or (st.secrets.get("supabase", {}).get("key") if hasattr(st, "secrets") else None)
+POSTGRES_URI = os.getenv("POSTGRES_URI") or (st.secrets.get("postgres", {}).get("uri") if hasattr(st, "secrets") else None)
+SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "images")
+APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8501")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -278,3 +273,4 @@ else:
                     add_caption_db(img["id"], player_name, caption_text.strip())
                     st.success("Caption submitted!")
                     st.rerun()
+
