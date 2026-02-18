@@ -14,11 +14,11 @@ from supabase import create_client
 st.set_page_config(page_title="Caption The Moment", layout="wide")
 
 # Now safely read env vars (Render provides these as env vars)
-SUPABASE_URL = os.getenv("SUPABASE_URL") or (st.secrets.get("supabase", {}).get("url") if hasattr(st, "secrets") else None)
-SUPABASE_KEY = os.getenv("SUPABASE_KEY") or (st.secrets.get("supabase", {}).get("key") if hasattr(st, "secrets") else None)
-POSTGRES_URI = os.getenv("POSTGRES_URI") or (st.secrets.get("postgres", {}).get("uri") if hasattr(st, "secrets") else None)
-SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "images")
-APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8501")
+SUPABASE_URL = os.environ.get('SUPABASE_URL') or (st.secrets.get("supabase", {}).get("url") if hasattr(st, "secrets") else None)
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY') or (st.secrets.get("supabase", {}).get("key") if hasattr(st, "secrets") else None)
+POSTGRES_URI = os.environ.get('POSTGRES_URI') or (st.secrets.get("postgres", {}).get("uri") if hasattr(st, "secrets") else None)
+SUPABASE_BUCKET = os.environ.get('SUPABASE_BUCKET')
+APP_BASE_URL = os.environ.get('APP_BASE_URL')
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- Database helpers ---
