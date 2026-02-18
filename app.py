@@ -206,7 +206,7 @@ if role == "host":
             img_id, filename, storage_path, public_url, success = upload_image(room_id, f)
             if success:
                 save_image_db(room_id, img_id, filename, storage_path, public_url)
-                st.success(f"Uploaded {filename}")
+                st.toast(f"Uploaded {filename}")
             else:
                 st.error(f"Upload failed for {filename}")
         st.rerun()
@@ -289,5 +289,6 @@ else:
                 if submitted and caption_text.strip():
                     add_caption_db(img["id"], player_name, caption_text.strip())
                     caption_text = st.text_input("Your caption", "", key=f"input_{img['id']}")
-                    st.success("Caption submitted!")
+                    st.toast("Caption submitted!")
                     st.rerun()
+
