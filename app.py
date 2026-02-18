@@ -91,7 +91,7 @@ def add_caption_db(image_id: str, player_name: str, text: str):
     res = sb_admin.table("captions").insert(payload).execute()
 
 def get_captions_for_image(image_id: str) -> List[Dict]:
-    builder = sb_admin.table("captions").select("player_name,text,created_at,winner").eq("image_id", image_id)
+    builder = sb_admin.table("captions").select("id,player_name,text,created_at,winner").eq("image_id", image_id)
     builder = _apply_order(builder, "created_at", ascending=True)
     res = builder.execute()
     return _extract_data(res)
@@ -200,6 +200,12 @@ def _choose_winner_caption(image_id, caption_id):
     sb_admin.table("captions").update({"winner": False}).eq("image_id", image_id).execute()
     sb_admin.table("captions").update({"winner": True}).eq("id", caption_id).execute()
 
+def _finish_game(room_id):
+    sb_admin.table("games").update({"finished": True}).eq("room_id", room_id).execute()
+
+def _is_game_finished(room_id):
+    return sb_admin.table("games").select("finished").eq("room_id", room_id).execute()
+
 # --- Main UI ---
 room_id = _get_param("room_id", None)
 role = _get_param("role", "host")
@@ -292,6 +298,8 @@ if role == "host":
                     storage_path = delete_image_db(img["id"])
                     st.rerun()
 
+    if st.checkbox("I have chosen a winner for every image") and st.button():
+        _finish_game(room_id)
 
 # Player UI
 else:
@@ -330,9 +338,27 @@ else:
                 st.write(f"Image: {img['filename']} (not accessible)")
 
             with st.form(f"form_{img['id']}"):
-                caption_text = st.text_input("Your caption", key=f"input_{img['id']}")
-                submitted = st.form_submit_button("Submit caption")
-                if submitted and caption_text.strip():
-                    add_caption_db(img["id"], player_name, caption_text.strip())
-                    st.toast("Caption submitted!")
-                    st.rerun()
+                if _game_is_finished(room_id):
+                    caps = get_captions_for_image(img["id"])
+                    if caps:
+                        for i, c in enumerate(caps, 1):
+                            col1, col2 = st.columns([4, 1])
+                            with col1:
+                                st.write("**Captions:**")
+                                st.write(f"{i}. **{c['player_name']}** — {c['text']}")
+                            with col2:
+                                if c['winner']:
+                                    st.write("👑 **Winner:**")
+                                else:
+                                    if st.button("👑", key=f"win_{c['text']}"):
+                                        _choose_winner_caption(id, c['id'])
+                                        st.rerun()
+                    else:
+                        st.write("_No captions were submitted_")
+                else:
+                    caption_text = st.text_input("Your caption", key=f"input_{img['id']}")
+                    submitted = st.form_submit_button("Submit caption")
+                    if submitted and caption_text.strip():
+                        add_caption_db(img["id"], player_name, caption_text.strip())
+                        st.toast("Caption submitted!")
+                        st.rerun()
