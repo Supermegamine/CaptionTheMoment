@@ -207,7 +207,9 @@ def _reopen_game(room_id):
     sb_admin.table("rooms").update({"finished": False}).eq("id", room_id).execute()
 
 def _is_game_finished(room_id):
-    return sb_admin.table("rooms").select("finished").eq("id", room_id).execute()
+    res = sb_admin.table("rooms").select("finished").eq("id", room_id).execute()
+    data = _extract_data(res)
+    return data[0]["finished"] if data else False
 
 # --- Main UI ---
 room_id = _get_param("room_id", None)
@@ -218,7 +220,7 @@ st.title("Caption The Moment")
 # Host UI
 if role == "host":
     if _is_game_finished(room_id):
-        st.header("Host")
+        st.header("Host – Game Finished")
         if st.button("Create new room"):
             room_id = create_room_db()
             _set_params(room_id=room_id, role="host")
@@ -232,7 +234,7 @@ if role == "host":
 
         imgs = list_room_images(room_id)
         if not imgs:
-            st.info("No images uploaded yet. Ask the host to upload some.")
+            st.info("No images uploaded yet.")
         else:
             for img in imgs:
                 public_url = img.get("public_url")
@@ -250,26 +252,26 @@ if role == "host":
                 else:
                     st.write(f"Image: {img['filename']} (not accessible)")
 
-                with st.form(f"form_{img['id']}"):
-                        caps = get_captions_for_image(img["id"])
-                        if caps:
-                            for i, c in enumerate(caps, 1):
-                                col1, col2 = st.columns([4, 1])
-                                with col1:
-                                    st.write("**Captions:**")
-                                    st.write(f"{i}. **{c['player_name']}** — {c['text']}")
-                                with col2:
-                                    if c['winner']:
-                                        st.write("👑 **Winner:**")
-                                    else:
-                                        if st.button("👑", key=f"win_{c['text']}"):
-                                            _choose_winner_caption(id, c['id'])
-                                            st.rerun()
-                        else:
-                            st.write("_No captions were submitted_")
+                caps = get_captions_for_image(img["id"])
+                if caps:
+                    st.write("**Captions:**")
+                    for c in caps:
+                        col1, col2 = st.columns([4, 1])
+                        with col1:
+                            st.write(f"**{c['player_name']}** — {c['text']}")
+                        with col2:
+                            if c['winner']:
+                                st.write("👑 **Winner**")
+                            else:
+                                if st.button("👑", key=f"win_{c['id']}"):
+                                    _choose_winner_caption(img['id'], c['id'])
+                                    st.rerun()
+                else:
+                    st.write("_No captions were submitted_")
 
-                if st.checkbox("I want to reopen or edit the game") and st.button("Reopen game"):
-                    _reopen_game(room_id)
+        if st.checkbox("I want to reopen or edit the game") and st.button("Reopen game"):
+            _reopen_game(room_id)
+            st.rerun()
     else:
         col1, col2 = st.columns([1, 3])
         with col1:
@@ -396,25 +398,19 @@ else:
             else:
                 st.write(f"Image: {img['filename']} (not accessible)")
 
-            with st.form(f"form_{img['id']}"):
-                if _is_game_finished(room_id):
-                    caps = get_captions_for_image(img["id"])
-                    if caps:
-                        st.write("**Captions:**")
-                        for c in caps:
-                            col1, col2 = st.columns([4, 1])
-                            with col1:
-                                st.write(f"**{c['player_name']}** — {c['text']}")
-                            with col2:
-                                if c['winner']:
-                                    st.write("👑 **Winner:**")
-                                else:
-                                    if st.button("👑", key=f"win_{c['text']}"):
-                                        _choose_winner_caption(id, c['id'])
-                                        st.rerun()
+            caps = get_captions_for_image(img["id"])
+            if caps:
+                st.write("**Captions:**")
+                for c in caps:
+                    if c.get('winner'):
+                        st.write(f"👑 **{c['player_name']}** — {c['text']} _(Winner!)_")
                     else:
-                        st.write("_No captions were submitted_")
-                else:
+                        st.write(f"**{c['player_name']}** — {c['text']}")
+            else:
+                st.write("_No captions were submitted_")
+
+            if not _is_game_finished(room_id):
+                with st.form(f"form_{img['id']}"):
                     caption_text = st.text_input("Your caption", key=f"input_{img['id']}")
                     submitted = st.form_submit_button("Submit caption")
                     if submitted and caption_text.strip():
