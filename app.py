@@ -195,10 +195,6 @@ def _extract_data(response):
         # Fallback: assume the response itself is the data
         return response or []
 
-def _clear_caption(key):
-    blank = ''
-    st.session_state[key] = blank
-
 # --- Main UI ---
 room_id = _get_param("room_id", None)
 role = _get_param("role", "host")
@@ -248,7 +244,7 @@ if role == "host":
     st.text_input("Would you like to give your photos a title or some context?", "e.g. My recent trip to the bahamas")
 
     st.markdown("---")
-    st.subheader("images & captions")
+    st.subheader("Images & captions")
     imgs = list_room_images(room_id)
     if not imgs:
         st.info("No images yet.")
@@ -324,6 +320,5 @@ else:
                 submitted = st.form_submit_button("Submit caption")
                 if submitted and caption_text.strip():
                     add_caption_db(img["id"], player_name, caption_text.strip())
-                    _clear_caption(f"input_{img['id']}")
                     st.toast("Caption submitted!")
                     st.rerun()
