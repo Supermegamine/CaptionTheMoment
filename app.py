@@ -1,22 +1,24 @@
-import streamlit as st
-from uuid import uuid4
-from pathlib import Path
+import os
 import io
+import json
+from uuid import uuid4
+from datetime import datetime
+from pathlib import Path
 
+import streamlit as st
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from supabase import create_client
 
-# --- Configuration ---
+# Page config must come after importing streamlit
 st.set_page_config(page_title="Caption The Moment", layout="wide")
-secrets = st.secrets
 
-SUPABASE_URL = os.getenv("SUPABASE_URL") or (st.secrets.get("supabase", {}).get("url") if hasattr(st, "secrets") else None)
-SUPABASE_KEY = os.getenv("SUPABASE_KEY") or (st.secrets.get("supabase", {}).get("key") if hasattr(st, "secrets") else None)
-POSTGRES_URI = os.getenv("POSTGRES_URI") or (st.secrets.get("postgres", {}).get("uri") if hasattr(st, "secrets") else None)
-SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "images")
-APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8501")
-
+# Now safely read env vars (Render provides these as env vars)
+SUPABASE_URL = os.environ.get('SUPABASE_URL') or (st.secrets.get("supabase", {}).get("url") if hasattr(st, "secrets") else None)
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY') or (st.secrets.get("supabase", {}).get("key") if hasattr(st, "secrets") else None)
+POSTGRES_URI = os.environ.get('POSTGRES_URI') or (st.secrets.get("postgres", {}).get("uri") if hasattr(st, "secrets") else None)
+SUPABASE_BUCKET = os.environ.get('SUPABASE_BUCKET')
+APP_BASE_URL = os.environ.get('APP_BASE_URL')
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- Database helpers ---
@@ -273,4 +275,3 @@ else:
                     add_caption_db(img["id"], player_name, caption_text.strip())
                     st.success("Caption submitted!")
                     st.rerun()
-
