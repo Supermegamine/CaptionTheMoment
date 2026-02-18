@@ -32,15 +32,7 @@ def create_room_db(title: str = "") -> str:
     rid = str(uuid.uuid4())
     payload = {"id": rid, "title": title}
     res = sb_admin.table("rooms").insert(payload).execute()
-    # res shape varies by version; check res.data / res.get("data")
-    # tolerant extraction:
-    try:
-        data = getattr(res, "data", None) or res.get("data", None) or res
-    except Exception:
-        data = res
-    # optionally check for errors:
-    if (hasattr(res, "error") and res.error) or (isinstance(res, dict) and res.get("error")):
-        raise Exception(f"Supabase insert error: {res}")
+    _extract_data(res)  # just to ensure no error; we don't need the data
     return rid
 
 def save_image_db(room_id: str, img_id: str, filename: str, storage_path: str, public_url: Optional[str]):
@@ -58,8 +50,7 @@ def list_room_images(room_id: str) -> List[Dict]:
     builder = sb_admin.table("images").select("id,filename,storage_path,public_url").eq("room_id", room_id)
     builder = _apply_order(builder, "uploaded_at", ascending=True)
     res = builder.execute()
-    rows = getattr(res, "data", None) or res.get("data", None) or res
-    return rows or []
+    return _extract_data(res)
 
 def add_caption_db(image_id: str, player_name: str, text: str):
     payload = {"image_id": image_id, "player_name": player_name, "text": text}
@@ -70,13 +61,12 @@ def get_captions_for_image(image_id: str) -> List[Dict]:
     builder = sb_admin.table("captions").select("player_name,text,created_at").eq("image_id", image_id)
     builder = _apply_order(builder, "created_at", ascending=True)
     res = builder.execute()
-    rows = getattr(res, "data", None) or res.get("data", None) or res
-    return rows or []
+    return _extract_data(res)
 
 def delete_image_db(image_id: str):
     # get storage_path first
     res = sb_admin.table("images").select("storage_path").eq("id", image_id).execute()
-    rows = getattr(res, "data", None) or res.get("data", None) or res
+    rows = _extract_data(res)
     storage_path = rows[0]["storage_path"] if rows else None
     # delete rows
     _ = sb_admin.table("images").delete().eq("id", image_id).execute()
@@ -162,6 +152,16 @@ def _set_params(**kwargs):
             st.query_params[k] = v if isinstance(v, list) else [v]
     elif hasattr(st, "experimental_set_query_params"):
         st.experimental_set_query_params(**kwargs)
+
+def _extract_data(response):
+    """Safely extract the 'data' field from a Supabase response."""
+    if hasattr(response, "data"):
+        return response.data
+    elif isinstance(response, dict) and "data" in response:
+        return response["data"]
+    else:
+        # Fallback: assume the response itself is the data
+        return response or []
 
 # --- Main UI ---
 room_id = _get_param("room_id", None)
