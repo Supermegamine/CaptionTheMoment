@@ -262,10 +262,6 @@ if role == "host":
                         with col2:
                             if c['winner']:
                                 st.write("👑 **Winner**")
-                            else:
-                                if st.button("👑", key=f"win_{c['id']}"):
-                                    _choose_winner_caption(img['id'], c['id'])
-                                    st.rerun()
                 else:
                     st.write("_No captions were submitted_")
 
