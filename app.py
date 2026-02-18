@@ -195,6 +195,9 @@ def _extract_data(response):
         # Fallback: assume the response itself is the data
         return response or []
 
+def _clear_caption(key):
+    st.session_state[key] = ""
+
 # --- Main UI ---
 room_id = _get_param("room_id", None)
 role = _get_param("role", "host")
@@ -315,7 +318,7 @@ else:
                 caption_text = st.text_input("Your caption", key=f"input_{img['id']}")
                 submitted = st.form_submit_button("Submit caption")
                 if submitted and caption_text.strip():
-                    st.session_state[f"input_{img['id']}"] = ""
+                    _clear_caption(f"input_{img['id']}")
                     add_caption_db(img["id"], player_name, caption_text.strip())
                     st.toast("Caption submitted!")
                     st.rerun()
