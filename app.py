@@ -196,7 +196,8 @@ def _extract_data(response):
         return response or []
 
 def _clear_caption(key):
-    st.session_state[key] = ""
+    blank = ''
+    st.session_state[key] = blank
 
 # --- Main UI ---
 room_id = _get_param("room_id", None)
@@ -315,7 +316,7 @@ else:
                 st.write(f"Image: {img['filename']} (not accessible)")
 
             with st.form(f"form_{img['id']}"):
-                caption_text = st.text_input("Your caption", key=f"input_{img['id']}")
+                caption_text = st.text_input("Your caption", on_change=_clear_caption(f"input_{img['id']}"), key=f"input_{img['id']}")
                 submitted = st.form_submit_button("Submit caption")
                 if submitted and caption_text.strip():
                     _clear_caption(f"input_{img['id']}")
