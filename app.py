@@ -201,10 +201,10 @@ def _choose_winner_caption(image_id, caption_id):
     sb_admin.table("captions").update({"winner": True}).eq("id", caption_id).execute()
 
 def _finish_game(room_id):
-    sb_admin.table("rooms").update({"finished": True}).eq("room_id", room_id).execute()
+    sb_admin.table("rooms").update({"finished": True}).eq("id", room_id).execute()
 
 def _is_game_finished(room_id):
-    return sb_admin.table("rooms").select("finished").eq("room_id", room_id).execute()
+    return sb_admin.table("rooms").select("finished").eq("id", room_id).execute()
 
 # --- Main UI ---
 room_id = _get_param("room_id", None)
@@ -286,7 +286,7 @@ if role == "host":
                             st.write(f"{i}. **{c['player_name']}** — {c['text']}")
                         with col2:
                             if c['winner']:
-                                st.write("👑 **Winner:**")
+                                st.write("👑 **Winner**")
                             else:
                                 if st.button("👑", key=f"win_{c['id']}"):
                                     _choose_winner_caption(id, c['id'])
@@ -298,8 +298,9 @@ if role == "host":
                     storage_path = delete_image_db(img["id"])
                     st.rerun()
 
-    if st.checkbox("I have chosen a winner for every image") and st.button():
+    if st.checkbox("I have chosen a winner for every image") and st.button("Submit Winners"):
         _finish_game(room_id)
+        st.rerun()
 
 # Player UI
 else:
