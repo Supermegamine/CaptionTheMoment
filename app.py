@@ -338,7 +338,7 @@ else:
                 st.write(f"Image: {img['filename']} (not accessible)")
 
             with st.form(f"form_{img['id']}"):
-                if _game_is_finished(room_id):
+                if _is_game_finished(room_id):
                     caps = get_captions_for_image(img["id"])
                     if caps:
                         for i, c in enumerate(caps, 1):
