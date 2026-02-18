@@ -244,7 +244,11 @@ if role == "host":
         st.toast(f"Uploaded {filename}")
 
     st.markdown("---")
-    st.subheader("Room images & captions")
+
+
+
+    st.markdown("---")
+    st.subheader("images & captions")
     imgs = list_room_images(room_id)
     if not imgs:
         st.info("No images yet.")
@@ -319,8 +323,6 @@ else:
                 caption_text = st.text_input("Your caption", on_change=_clear_caption(f"input_{img['id']}"), key=f"input_{img['id']}")
                 submitted = st.form_submit_button("Submit caption")
                 if submitted and caption_text.strip():
-                    _clear_caption(f"input_{img['id']}")
                     add_caption_db(img["id"], player_name, caption_text.strip())
                     st.toast("Caption submitted!")
                     st.rerun()
-
