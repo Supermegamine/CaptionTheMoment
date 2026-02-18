@@ -336,11 +336,11 @@ if role == "host":
 
                     caps = get_captions_for_image(img["id"])
                     if caps:
-                        for i, c in enumerate(caps, 1):
+                        st.write("**Captions:**")
+                        for c in caps:
                             col1, col2 = st.columns([4, 1])
                             with col1:
-                                st.write("**Captions:**")
-                                st.write(f"{i}. **{c['player_name']}** — {c['text']}")
+                                st.write(f"**{c['player_name']}** — {c['text']}")
                             with col2:
                                 if c['winner']:
                                     st.write("👑 **Winner**")
@@ -400,11 +400,11 @@ else:
                 if _is_game_finished(room_id):
                     caps = get_captions_for_image(img["id"])
                     if caps:
-                        for i, c in enumerate(caps, 1):
+                        st.write("**Captions:**")
+                        for c in caps:
                             col1, col2 = st.columns([4, 1])
                             with col1:
-                                st.write("**Captions:**")
-                                st.write(f"{i}. **{c['player_name']}** — {c['text']}")
+                                st.write(f"**{c['player_name']}** — {c['text']}")
                             with col2:
                                 if c['winner']:
                                     st.write("👑 **Winner:**")
