@@ -203,6 +203,9 @@ def _choose_winner_caption(image_id, caption_id):
 def _finish_game(room_id):
     sb_admin.table("rooms").update({"finished": True}).eq("id", room_id).execute()
 
+def _reopen_game(room_id):
+    sb_admin.table("rooms").update({"finished": False}).eq("id", room_id).execute()
+
 def _is_game_finished(room_id):
     return sb_admin.table("rooms").select("finished").eq("id", room_id).execute()
 
@@ -214,8 +217,7 @@ st.title("Caption The Moment")
 
 # Host UI
 if role == "host":
-    col1, col2 = st.columns([1, 3])
-    with col1:
+    if _is_game_finished(room_id):
         st.header("Host")
         if st.button("Create new room"):
             room_id = create_room_db()
@@ -228,40 +230,11 @@ if role == "host":
         else:
             st.info("Create a room first (press the button).")
 
-    if not room_id:
-        st.stop()
-
-    st.header("Upload images")
-    with st.form("upload_form"):
-        uploaded = st.file_uploader(
-            "Upload image(s)", accept_multiple_files=True,
-            type=['png', 'jpg', 'jpeg', 'gif']
-        )
-        submitted = st.form_submit_button("Upload")
-
-    if submitted and uploaded:
-        for f in uploaded:
-            img_id, filename, storage_path, public_url, success = upload_image(room_id, f)
-            if success:
-                save_image_db(room_id, img_id, filename, storage_path, public_url)
-                st.toast(f"Uploaded {filename}")
-            else:
-                st.error(f"Upload failed for {filename}")
-        st.rerun()
-
-    st.markdown("---")
-
-    st.text_input("Would you like to give your photos a title or some context?", "e.g. My recent trip to the bahamas")
-
-    st.markdown("---")
-    st.subheader("Images & captions")
-    imgs = list_room_images(room_id)
-    if not imgs:
-        st.info("No images yet.")
-    else:
-        for img in imgs:
-            left, right = st.columns([4, 1])
-            with left:
+        imgs = list_room_images(room_id)
+        if not imgs:
+            st.info("No images uploaded yet. Ask the host to upload some.")
+        else:
+            for img in imgs:
                 public_url = img.get("public_url")
                 if not public_url and img.get("storage_path"):
                     try:
@@ -273,34 +246,119 @@ if role == "host":
                         pass
 
                 if public_url:
-                    st.image(public_url, width=800)
+                    st.image(public_url, width=700)
                 else:
                     st.write(f"Image: {img['filename']} (not accessible)")
 
-                caps = get_captions_for_image(img["id"])
-                if caps:
-                    for i, c in enumerate(caps, 1):
-                        col1, col2 = st.columns([4, 1])
-                        with col1:
-                            st.write("**Captions:**")
-                            st.write(f"{i}. **{c['player_name']}** — {c['text']}")
-                        with col2:
-                            if c['winner']:
-                                st.write("👑 **Winner**")
-                            else:
-                                if st.button("👑", key=f"win_{c['id']}"):
-                                    _choose_winner_caption(img['id'], c['id'])
-                                    st.rerun()
-                else:
-                    st.write("_No captions yet_")
-            with right:
-                if st.button("Delete", key=f"del_{img['id']}"):
-                    storage_path = delete_image_db(img["id"])
-                    st.rerun()
+                with st.form(f"form_{img['id']}"):
+                        caps = get_captions_for_image(img["id"])
+                        if caps:
+                            for i, c in enumerate(caps, 1):
+                                col1, col2 = st.columns([4, 1])
+                                with col1:
+                                    st.write("**Captions:**")
+                                    st.write(f"{i}. **{c['player_name']}** — {c['text']}")
+                                with col2:
+                                    if c['winner']:
+                                        st.write("👑 **Winner:**")
+                                    else:
+                                        if st.button("👑", key=f"win_{c['text']}"):
+                                            _choose_winner_caption(id, c['id'])
+                                            st.rerun()
+                        else:
+                            st.write("_No captions were submitted_")
 
-    if st.checkbox("I have chosen a winner for every image") and st.button("Submit Winners"):
-        _finish_game(room_id)
-        st.rerun()
+                if st.checkbox("I want to reopen or edit the game") and st.button("Reopen game"):
+                    _reopen_game(room_id)
+    else:
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            st.header("Host")
+            if st.button("Create new room"):
+                room_id = create_room_db()
+                _set_params(room_id=room_id, role="host")
+                st.rerun()
+
+            if room_id:
+                st.markdown("**Shareable link for players:**")
+                st.code(f"{APP_BASE_URL}/?room_id={room_id}&role=player")
+            else:
+                st.info("Create a room first (press the button).")
+
+        if not room_id:
+            st.stop()
+
+        st.header("Upload images")
+        with st.form("upload_form"):
+            uploaded = st.file_uploader(
+                "Upload image(s)", accept_multiple_files=True,
+                type=['png', 'jpg', 'jpeg', 'gif']
+            )
+            submitted = st.form_submit_button("Upload")
+
+        if submitted and uploaded:
+            for f in uploaded:
+                img_id, filename, storage_path, public_url, success = upload_image(room_id, f)
+                if success:
+                    save_image_db(room_id, img_id, filename, storage_path, public_url)
+                    st.toast(f"Uploaded {filename}")
+                else:
+                    st.error(f"Upload failed for {filename}")
+            st.rerun()
+
+        st.markdown("---")
+
+        st.text_input("Would you like to give your photos a title or some context?", "e.g. My recent trip to the bahamas")
+
+        st.markdown("---")
+        st.subheader("Images & captions")
+        imgs = list_room_images(room_id)
+        if not imgs:
+            st.info("No images yet.")
+        else:
+            for img in imgs:
+                left, right = st.columns([4, 1])
+                with left:
+                    public_url = img.get("public_url")
+                    if not public_url and img.get("storage_path"):
+                        try:
+                            signed = supabase.storage.from_(SUPABASE_BUCKET).create_signed_url(
+                                img["storage_path"], 3600
+                            )
+                            public_url = signed.get("signedURL") if isinstance(signed, dict) else None
+                        except Exception:
+                            pass
+
+                    if public_url:
+                        st.image(public_url, width=800)
+                    else:
+                        st.write(f"Image: {img['filename']} (not accessible)")
+
+                    caps = get_captions_for_image(img["id"])
+                    if caps:
+                        for i, c in enumerate(caps, 1):
+                            col1, col2 = st.columns([4, 1])
+                            with col1:
+                                st.write("**Captions:**")
+                                st.write(f"{i}. **{c['player_name']}** — {c['text']}")
+                            with col2:
+                                if c['winner']:
+                                    st.write("👑 **Winner**")
+                                else:
+                                    if st.button("👑", key=f"win_{c['id']}"):
+                                        _choose_winner_caption(img['id'], c['id'])
+                                        st.rerun()
+                    else:
+                        st.write("_No captions yet_")
+                with right:
+                    if st.button("Delete", key=f"del_{img['id']}"):
+                        storage_path = delete_image_db(img["id"])
+                        st.rerun()
+
+        if st.checkbox("I have chosen a winner for every image") and st.button("Submit Winners"):
+            _finish_game(room_id)
+            st.rerun()
+
 
 # Player UI
 else:
