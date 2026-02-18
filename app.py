@@ -1,9 +1,9 @@
 import os
 import io
-import json
 from uuid import uuid4
-from datetime import datetime
 from pathlib import Path
+import uuid
+from typing import List, Dict, Optional
 
 import streamlit as st
 import psycopg2
@@ -20,73 +20,65 @@ POSTGRES_URI = os.environ.get('POSTGRES_URI') or (st.secrets.get("postgres", {})
 SUPABASE_BUCKET = os.environ.get('SUPABASE_BUCKET')
 APP_BASE_URL = os.environ.get('APP_BASE_URL')
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+SERVICE_ROLE = os.environ.get('SUPABASE_SERVICE_ROLE')
+
+sb_admin = create_client(SUPABASE_URL, SERVICE_ROLE)
 
 # --- Database helpers ---
 def get_conn():
     return psycopg2.connect(POSTGRES_URI, cursor_factory=RealDictCursor)
 
-def create_room_db(title=""):
-    rid = str(uuid4())
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO rooms (id, title, created_at) VALUES (%s, %s, now())",
-                (rid, title),
-            )
+def create_room_db(title: str = "") -> str:
+    rid = str(uuid.uuid4())
+    payload = {"id": rid, "title": title}
+    res = sb_admin.table("rooms").insert(payload).execute()
+    # res shape varies by version; check res.data / res.get("data")
+    # tolerant extraction:
+    try:
+        data = getattr(res, "data", None) or res.get("data", None) or res
+    except Exception:
+        data = res
+    # optionally check for errors:
+    if (hasattr(res, "error") and res.error) or (isinstance(res, dict) and res.get("error")):
+        raise Exception(f"Supabase insert error: {res}")
     return rid
 
-def save_image_db(room_id, img_id, filename, storage_path, public_url):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO images (id, room_id, filename, storage_path, public_url, uploaded_at) VALUES (%s, %s, %s, %s, %s, now())",
-                (img_id, room_id, filename, storage_path, public_url),
-            )
+def save_image_db(room_id: str, img_id: str, filename: str, storage_path: str, public_url: Optional[str]):
+    payload = {
+        "id": img_id,
+        "room_id": room_id,
+        "filename": filename,
+        "storage_path": storage_path,
+        "public_url": public_url
+    }
+    res = sb_admin.table("images").insert(payload).execute()
+    # handle errors as above
 
-def list_room_images(room_id):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT id, filename, storage_path, public_url FROM images WHERE room_id = %s ORDER BY uploaded_at",
-                (room_id,)
-            )
-            return cur.fetchall()
+def list_room_images(room_id: str) -> List[Dict]:
+    res = sb_admin.table("images").select("id,filename,storage_path,public_url").eq("room_id", room_id).order("uploaded_at", {"ascending": True}).execute()
+    # extract rows robustly:
+    rows = getattr(res, "data", None) or res.get("data", None) or res
+    return rows or []
 
-def add_caption_db(image_id, player_name, text):
-    cid = str(uuid4())
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO captions (id, image_id, player_name, text, created_at) VALUES (%s, %s, %s, %s, now())",
-                (cid, image_id, player_name, text),
-            )
+def add_caption_db(image_id: str, player_name: str, text: str):
+    payload = {"image_id": image_id, "player_name": player_name, "text": text}
+    res = sb_admin.table("captions").insert(payload).execute()
+    # check errors
 
-def get_captions_for_image(image_id):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT player_name, text, created_at FROM captions WHERE image_id = %s ORDER BY created_at",
-                (image_id,)
-            )
-            return cur.fetchall()
+def get_captions_for_image(image_id: str) -> List[Dict]:
+    res = sb_admin.table("captions").select("player_name,text,created_at").eq("image_id", image_id).order("created_at", {"ascending": True}).execute()
+    rows = getattr(res, "data", None) or res.get("data", None) or res
+    return rows or []
 
-def delete_image_db(image_id):
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT storage_path FROM images WHERE id = %s", (image_id,))
-            row = cur.fetchone()
-            storage_path = row["storage_path"] if row else None
-
-            cur.execute("DELETE FROM images WHERE id = %s", (image_id,))
-            cur.execute("DELETE FROM captions WHERE image_id = %s", (image_id,))
+def delete_image_db(image_id: str):
+    # get storage_path first
+    res = sb_admin.table("images").select("storage_path").eq("id", image_id).execute()
+    rows = getattr(res, "data", None) or res.get("data", None) or res
+    storage_path = rows[0]["storage_path"] if rows else None
+    # delete rows
+    _ = sb_admin.table("images").delete().eq("id", image_id).execute()
+    _ = sb_admin.table("captions").delete().eq("image_id", image_id).execute()
     return storage_path
-
-def delete_from_supabase(storage_path):
-    try:
-        supabase.storage.from_(SUPABASE_BUCKET).remove([storage_path])
-    except Exception as e:
-        st.warning(f"Could not delete from storage: {e}")
-
 # --- Upload function (no debug) ---
 def upload_image(room_id, uploaded_file):
     """Upload an image to Supabase. Returns (img_id, filename, storage_path, public_url, success)."""
