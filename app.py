@@ -14,9 +14,9 @@ from supabase import create_client
 st.set_page_config(page_title="Caption The Moment", layout="wide")
 
 # Now safely read env vars (Render provides these as env vars)
-SUPABASE_URL = os.environ.get('SUPABASE_URL') or (st.secrets.get("supabase", {}).get("url") if hasattr(st, "secrets") else None)
-SUPABASE_KEY = os.environ.get('SUPABASE_KEY') or (st.secrets.get("supabase", {}).get("key") if hasattr(st, "secrets") else None)
-POSTGRES_URI = os.environ.get('POSTGRES_URI') or (st.secrets.get("postgres", {}).get("uri") if hasattr(st, "secrets") else None)
+SUPABASE_URL = os.environ.get('SUPABASE_URL') or (st.secrets["supabase"]["url"])
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY') or (st.secrets["supabase"]["key"])
+POSTGRES_URI = os.environ.get('POSTGRES_URI') or (st.secrets["postgres"]["uri"])
 SUPABASE_BUCKET = os.environ.get('SUPABASE_BUCKET')
 APP_BASE_URL = os.environ.get('APP_BASE_URL')
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -288,7 +288,6 @@ else:
                 submitted = st.form_submit_button("Submit caption")
                 if submitted and caption_text.strip():
                     add_caption_db(img["id"], player_name, caption_text.strip())
-                    caption_text = st.text_input("Your caption", "", key=f"input_{img['id']}")
                     st.toast("Caption submitted!")
                     st.rerun()
 
