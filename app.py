@@ -288,5 +288,6 @@ else:
                 submitted = st.form_submit_button("Submit caption")
                 if submitted and caption_text.strip():
                     add_caption_db(img["id"], player_name, caption_text.strip())
+                    caption_text = st.text_input("Your caption", "", key=f"input_{img['id']}")
                     st.success("Caption submitted!")
                     st.rerun()
