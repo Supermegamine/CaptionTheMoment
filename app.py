@@ -53,9 +53,14 @@ def list_room_images(room_id: str) -> List[Dict]:
     return _extract_data(res)
 
 def add_caption_db(image_id: str, player_name: str, text: str):
-    payload = {"image_id": image_id, "player_name": player_name, "text": text}
+    cid = str(uuid.uuid4())  # generate a unique ID
+    payload = {
+        "id": cid,
+        "image_id": image_id,
+        "player_name": player_name,
+        "text": text
+    }
     res = sb_admin.table("captions").insert(payload).execute()
-    # check errors
 
 def get_captions_for_image(image_id: str) -> List[Dict]:
     builder = sb_admin.table("captions").select("player_name,text,created_at").eq("image_id", image_id)
