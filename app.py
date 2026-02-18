@@ -14,15 +14,42 @@ from supabase import create_client
 st.set_page_config(page_title="Caption The Moment", layout="wide")
 
 # Now safely read env vars (Render provides these as env vars)
-SUPABASE_URL = os.environ.get('SUPABASE_URL') or (st.secrets["supabase"]["url"])
-SUPABASE_KEY = os.environ.get('SUPABASE_KEY') or (st.secrets["supabase"]["key"])
-POSTGRES_URI = os.environ.get('POSTGRES_URI') or (st.secrets["postgres"]["uri"])
-SUPABASE_BUCKET = os.environ.get('SUPABASE_BUCKET')
-APP_BASE_URL = os.environ.get('APP_BASE_URL')
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-SERVICE_ROLE = os.environ.get('SUPABASE_SERVICE_ROLE')
+SUPABASE_URL = (
+    os.environ.get('SUPABASE_URL')
+    or st.secrets["supabase"]["url"]
+)
+
+SUPABASE_KEY = (
+    os.environ.get('SUPABASE_KEY')
+    or st.secrets["supabase"]["key"]
+)
+
+POSTGRES_URI = (
+    os.environ.get('POSTGRES_URI')
+    or st.secrets["postgres"]["uri"]
+)
+
+# Service role key (for admin operations) – fallback to secrets if env var not set
+SERVICE_ROLE = (
+    os.environ.get('SUPABASE_SERVICE_ROLE')
+    or st.secrets["supabase"].get("role")  # note: .get() avoids KeyError if missing
+)
+
+# Bucket name – fallback to a default if neither env var nor secret provided
+SUPABASE_BUCKET = (
+    os.environ.get('SUPABASE_BUCKET')
+    or st.secrets.get("supabase", {}).get("bucket", "images")
+)
+
+# App base URL – fallback to a sensible default (useful for localhost)
+APP_BASE_URL = (
+    os.environ.get('APP_BASE_URL')
+    or st.secrets.get("app", {}).get("url", "http://localhost:8501")
+)
 
 sb_admin = create_client(SUPABASE_URL, SERVICE_ROLE)
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- Database helpers ---
 def get_conn():
@@ -210,6 +237,7 @@ if role == "host":
             else:
                 st.error(f"Upload failed for {filename}")
         st.rerun()
+        st.toast(f"Uploaded {filename}")
 
     st.markdown("---")
     st.subheader("Room images & captions")
