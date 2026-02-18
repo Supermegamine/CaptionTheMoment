@@ -245,7 +245,7 @@ if role == "host":
 
     st.markdown("---")
 
-
+    st.text_input("Would you like to give your photos a title or some context?", "e.g. My recent trip to the bahamas")
 
     st.markdown("---")
     st.subheader("images & captions")
@@ -320,9 +320,10 @@ else:
                 st.write(f"Image: {img['filename']} (not accessible)")
 
             with st.form(f"form_{img['id']}"):
-                caption_text = st.text_input("Your caption", on_change=_clear_caption(f"input_{img['id']}"), key=f"input_{img['id']}")
+                caption_text = st.text_input("Your caption", key=f"input_{img['id']}")
                 submitted = st.form_submit_button("Submit caption")
                 if submitted and caption_text.strip():
                     add_caption_db(img["id"], player_name, caption_text.strip())
+                    _clear_caption(f"input_{img['id']}")
                     st.toast("Caption submitted!")
                     st.rerun()
