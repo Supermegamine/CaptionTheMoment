@@ -665,7 +665,7 @@ if role == "host":
         col_left, col_right = st.columns([1, 3])
 
         with col_left:
-            st.markdown('<div class="panel-box">', unsafe_allow_html=True)
+            #st.markdown('<div class="panel-box">', unsafe_allow_html=True)
             st.markdown('<span class="tag-label">🎮 Host Controls</span>', unsafe_allow_html=True)
 
             if st.button("➕ Create New Room"):
@@ -683,13 +683,13 @@ if role == "host":
                 """, unsafe_allow_html=True)
             else:
                 st.info("Create a room first (press the button).")
-            st.markdown('</div>', unsafe_allow_html=True)
+            #st.markdown('</div>', unsafe_allow_html=True)
 
         if not room_id:
             st.stop()
 
         with col_right:
-            st.markdown('<div class="panel-box">', unsafe_allow_html=True)
+            #st.markdown('<div class="panel-box">', unsafe_allow_html=True)
             st.markdown('<span class="tag-label">📤 Upload Images</span>', unsafe_allow_html=True)
             with st.form("upload_form"):
                 uploaded = st.file_uploader(
@@ -709,7 +709,7 @@ if role == "host":
                 st.rerun()
 
             st.text_input("📝 Photo context / title", "e.g. My recent trip to the Bahamas")
-            st.markdown('</div>', unsafe_allow_html=True)
+            #st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown("---")
 

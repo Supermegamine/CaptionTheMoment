@@ -11,6 +11,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     STREAMLIT_SERVER_HEADLESS=true \
     STREAMLIT_SERVER_ENABLE_CORS=false
 
+RUN streamlit cache clear
+
 # Copy and install dependencies
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
