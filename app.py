@@ -88,7 +88,9 @@ h3 { font-size: 1.2rem !important; }
   backdrop-filter: blur(12px) !important;
 }
 
-section.main > div { padding-top: 1.5rem !important; }
+section.main > div {
+  padding-top: 1.5rem !important;
+}
 
 /* ── Metric containers ── */
 [data-testid="stMetric"] {
@@ -97,12 +99,6 @@ section.main > div { padding-top: 1.5rem !important; }
   border-radius: 16px !important;
   padding: 1rem !important;
   backdrop-filter: blur(8px) !important;
-}
-
-/* ── All containers / panels ── */
-[data-testid="stVerticalBlock"] > div > [data-testid="stVerticalBlock"],
-div[data-testid="column"] {
-  /* subtle: don't override everything, only target card-like containers */
 }
 
 /* ── Buttons ── */
@@ -128,7 +124,7 @@ button[kind="primary"], .stButton > button {
 }
 
 /* Delete buttons — red */
-.stButton > button[data-testid*="del"] ,
+.stButton > button[data-testid*="del"],
 button[title*="Delete"] {
   background: linear-gradient(135deg, #ff4b6e, #c0004e) !important;
   box-shadow: 0 4px 16px rgba(255, 75, 110, 0.4) !important;
@@ -153,7 +149,9 @@ input[type="text"]:focus, textarea:focus, .stTextInput > div > div > input:focus
   box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.2) !important;
 }
 
-input::placeholder { color: rgba(255,255,255,0.4) !important; }
+input::placeholder {
+  color: rgba(255,255,255,0.4) !important;
+}
 
 /* ── File uploader ── */
 [data-testid="stFileUploader"] {
@@ -177,8 +175,7 @@ input::placeholder { color: rgba(255,255,255,0.4) !important; }
 }
 
 /* ── Info / toast boxes ── */
-[data-testid="stAlert"],
-.stAlert {
+[data-testid="stAlert"], .stAlert {
   background: rgba(0, 229, 255, 0.08) !important;
   border: 1px solid rgba(0, 229, 255, 0.3) !important;
   border-radius: 12px !important;
@@ -220,7 +217,10 @@ hr {
   align-items: center;
   gap: 0.8rem;
 }
-.caption-card:hover { background: var(--card-hover); }
+
+.caption-card:hover {
+  background: var(--card-hover);
+}
 
 .caption-winner {
   background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 165, 0, 0.08)) !important;
@@ -257,7 +257,7 @@ hr {
 
 @keyframes pulse-badge {
   0%,100% { opacity: 1; }
-  50%      { opacity: 0.6; }
+  50% { opacity: 0.6; }
 }
 
 .status-badge {
@@ -274,16 +274,6 @@ hr {
   letter-spacing: 1px;
   color: var(--accent-cyan);
   text-transform: uppercase;
-}
-
-.panel-box {
-  background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: 20px;
-  padding: 1.5rem;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-  margin-bottom: 1rem;
 }
 
 .tag-label {
@@ -307,10 +297,14 @@ hr {
   border-radius: 20px !important;
   padding: 1.5rem !important;
   backdrop-filter: blur(12px) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3) !important;
+  margin-bottom: 1rem !important;
 }
 
 /* ── Spinner ── */
-[data-testid="stSpinner"] { color: var(--accent-cyan) !important; }
+[data-testid="stSpinner"] {
+  color: var(--accent-cyan) !important;
+}
 
 /* ── Toast notifications ── */
 [data-testid="stToast"] {
@@ -323,10 +317,7 @@ hr {
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--accent-purple);
-  border-radius: 10px;
-}
+::-webkit-scrollbar-thumb { background: var(--accent-purple); border-radius: 10px; }
 
 /* ── Select boxes ── */
 [data-testid="stSelectbox"] > div {
@@ -354,6 +345,7 @@ hr {
   justify-content: space-between;
   margin-bottom: 1rem;
 }
+
 .captions-panel-title {
   font-family: 'Exo 2', sans-serif;
   font-weight: 900;
@@ -388,6 +380,7 @@ hr {
   display: inline-flex;
   gap: 0.6rem;
 }
+
 .info-chip {
   background: rgba(0,0,0,0.35);
   border: 1px solid var(--panel-border);
@@ -404,33 +397,28 @@ hr {
 
 # Now safely read env vars (Render provides these as env vars)
 SUPABASE_URL = (
-    os.environ.get('SUPABASE_URL')
-    or st.secrets["supabase"]["url"]
+        os.environ.get('SUPABASE_URL')
+        or st.secrets["supabase"]["url"]
 )
-
 SUPABASE_KEY = (
-    os.environ.get('SUPABASE_KEY')
-    or st.secrets["supabase"]["key"]
+        os.environ.get('SUPABASE_KEY')
+        or st.secrets["supabase"]["key"]
 )
-
 POSTGRES_URI = (
-    os.environ.get('POSTGRES_URI')
-    or st.secrets["postgres"]["uri"]
+        os.environ.get('POSTGRES_URI')
+        or st.secrets["postgres"]["uri"]
 )
-
 SERVICE_ROLE = (
-    os.environ.get('SUPABASE_SERVICE_ROLE')
-    or st.secrets["supabase"].get("role")
+        os.environ.get('SUPABASE_SERVICE_ROLE')
+        or st.secrets["supabase"].get("role")
 )
-
 SUPABASE_BUCKET = (
-    os.environ.get('SUPABASE_BUCKET')
-    or st.secrets.get("supabase", {}).get("bucket", "images")
+        os.environ.get('SUPABASE_BUCKET')
+        or st.secrets.get("supabase", {}).get("bucket", "images")
 )
-
 APP_BASE_URL = (
-    os.environ.get('APP_BASE_URL')
-    or st.secrets.get("app", {}).get("url", "http://localhost:8501")
+        os.environ.get('APP_BASE_URL')
+        or st.secrets.get("app", {}).get("url", "http://localhost:8501")
 )
 
 sb_admin = create_client(SUPABASE_URL, SERVICE_ROLE)
@@ -523,7 +511,7 @@ def upload_image(room_id, uploaded_file):
         public_url = supabase.storage.from_(SUPABASE_BUCKET).get_public_url(storage_path)
     except Exception:
         try:
-            signed = supabase.storage.from_(SUPABASE_BUCKET).create_signed_url(storage_path, 60*60)
+            signed = supabase.storage.from_(SUPABASE_BUCKET).create_signed_url(storage_path, 60 * 60)
             public_url = signed.get("signedURL") if isinstance(signed, dict) else None
         except Exception:
             pass
@@ -593,24 +581,25 @@ st.markdown("---")
 
 # ── HOST UI ──────────────────────────────────────────────────────────────────────
 if role == "host":
-
     if _is_game_finished(room_id):
         # ── FINISHED VIEW ──
         st.markdown('<div class="tag-label">🏁 Game Finished</div>', unsafe_allow_html=True)
         st.header("Results")
 
         col_a, col_b = st.columns([1, 2])
-        with col_a:
-            if st.button("➕ Create New Room"):
-                room_id = create_room_db()
-                _set_params(room_id=room_id, role="host")
-                st.rerun()
 
-            if room_id:
-                st.markdown("**Shareable link for players:**")
-                st.code(f"{APP_BASE_URL}/?room_id={room_id}&role=player")
-            else:
-                st.info("Create a room first (press the button).")
+        with col_a:
+            with st.container():
+                if st.button("➕ Create New Room"):
+                    room_id = create_room_db()
+                    _set_params(room_id=room_id, role="host")
+                    st.rerun()
+
+                if room_id:
+                    st.markdown("**Shareable link for players:**")
+                    st.code(f"{APP_BASE_URL}/?room_id={room_id}&role=player")
+                else:
+                    st.info("Create a room first (press the button).")
 
         imgs = list_room_images(room_id)
         if not imgs:
@@ -625,37 +614,39 @@ if role == "host":
                     except Exception:
                         pass
 
-                st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-                st.markdown('<span class="tag-label">📸 The Moment</span>', unsafe_allow_html=True)
-                if public_url:
-                    st.image(public_url, width=700)
-                else:
-                    st.write(f"Image: {img['filename']} (not accessible)")
+                with st.container():
+                    st.markdown('<span class="tag-label">📸 The Moment</span>', unsafe_allow_html=True)
 
-                caps = get_captions_for_image(img["id"])
-                if caps:
-                    st.markdown("""
-                    <div class="captions-panel-header">
-                      <div class="captions-panel-title">💬 Captions</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    for c in caps:
-                        winner_class = "caption-winner" if c['winner'] else ""
-                        crown = "👑 " if c['winner'] else ""
-                        st.markdown(f"""
-                        <div class="caption-card {winner_class}">
-                          {_avatar_html(c['player_name'])}
-                          <div>
-                            <div class="caption-player">{crown}{c['player_name']}</div>
-                            <div class="caption-text">"{c['text']}"</div>
-                          </div>
+                    if public_url:
+                        st.image(public_url, width=700)
+                    else:
+                        st.write(f"Image: {img['filename']} (not accessible)")
+
+                    caps = get_captions_for_image(img["id"])
+                    if caps:
+                        st.markdown("""
+                        <div class="captions-panel-header">
+                            <div class="captions-panel-title">💬 Captions</div>
                         </div>
                         """, unsafe_allow_html=True)
-                else:
-                    st.markdown("_No captions were submitted_")
-                st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("---")
+                        for c in caps:
+                            winner_class = "caption-winner" if c['winner'] else ""
+                            crown = "👑 " if c['winner'] else ""
+                            st.markdown(f"""
+                            <div class="caption-card {winner_class}">
+                                {_avatar_html(c['player_name'])}
+                                <div>
+                                    <div class="caption-player">{crown}{c['player_name']}</div>
+                                    <div class="caption-text">"{c['text']}"</div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.markdown("_No captions were submitted_")
+
+                st.markdown("---")
+
         if st.checkbox("I want to reopen or edit the game") and st.button("🔓 Reopen Game"):
             _reopen_game(room_id)
             st.rerun()
@@ -665,58 +656,57 @@ if role == "host":
         col_left, col_right = st.columns([1, 3])
 
         with col_left:
-            #st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-            st.markdown('<span class="tag-label">🎮 Host Controls</span>', unsafe_allow_html=True)
+            with st.container():
+                st.markdown('<span class="tag-label">🎮 Host Controls</span>', unsafe_allow_html=True)
 
-            if st.button("➕ Create New Room"):
-                room_id = create_room_db()
-                _set_params(room_id=room_id, role="host")
-                st.rerun()
+                if st.button("➕ Create New Room"):
+                    room_id = create_room_db()
+                    _set_params(room_id=room_id, role="host")
+                    st.rerun()
 
-            if room_id:
-                st.markdown("**Shareable link for players:**")
-                st.code(f"{APP_BASE_URL}/?room_id={room_id}&role=player")
-                st.markdown(f"""
-                <div class="info-bar">
-                  <span class="info-chip">Room: #{str(room_id)[:6].upper()}</span>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.info("Create a room first (press the button).")
-            #st.markdown('</div>', unsafe_allow_html=True)
+                if room_id:
+                    st.markdown("**Shareable link for players:**")
+                    st.code(f"{APP_BASE_URL}/?room_id={room_id}&role=player")
+                    st.markdown(f"""
+                    <div class="info-bar">
+                        <span class="info-chip">Room: #{str(room_id)[:6].upper()}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.info("Create a room first (press the button).")
 
         if not room_id:
             st.stop()
 
         with col_right:
-            #st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-            st.markdown('<span class="tag-label">📤 Upload Images</span>', unsafe_allow_html=True)
-            with st.form("upload_form"):
-                uploaded = st.file_uploader(
-                    "Upload image(s)", accept_multiple_files=True,
-                    type=['png', 'jpg', 'jpeg', 'gif']
-                )
-                submitted = st.form_submit_button("Upload ▶")
+            with st.container():
+                st.markdown('<span class="tag-label">📤 Upload Images</span>', unsafe_allow_html=True)
 
-            if submitted and uploaded:
-                for f in uploaded:
-                    img_id, filename, storage_path, public_url, success = upload_image(room_id, f)
-                    if success:
-                        save_image_db(room_id, img_id, filename, storage_path, public_url)
-                        st.toast(f"✅ Uploaded {filename}")
-                    else:
-                        st.error(f"Upload failed for {filename}")
-                st.rerun()
+                with st.form("upload_form"):
+                    uploaded = st.file_uploader(
+                        "Upload image(s)",
+                        accept_multiple_files=True,
+                        type=['png', 'jpg', 'jpeg', 'gif']
+                    )
+                    submitted = st.form_submit_button("Upload ▶")
 
-            st.text_input("📝 Photo context / title", "e.g. My recent trip to the Bahamas")
-            #st.markdown('</div>', unsafe_allow_html=True)
+                    if submitted and uploaded:
+                        for f in uploaded:
+                            img_id, filename, storage_path, public_url, success = upload_image(room_id, f)
+                            if success:
+                                save_image_db(room_id, img_id, filename, storage_path, public_url)
+                                st.toast(f"✅ Uploaded {filename}")
+                            else:
+                                st.error(f"Upload failed for {filename}")
+                        st.rerun()
+
+                st.text_input("📝 Photo context / title", "e.g. My recent trip to the Bahamas")
 
         st.markdown("---")
-
         st.markdown("""
         <div class="captions-panel-header">
-          <div class="captions-panel-title">📸 Images &amp; Captions</div>
-          <span class="live-badge">LIVE</span>
+            <div class="captions-panel-title">📸 Images &amp; Captions</div>
+            <span class="live-badge">LIVE</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -725,75 +715,80 @@ if role == "host":
             st.info("No images yet — upload some above.")
         else:
             for img in imgs:
-                st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-                left, right = st.columns([4, 1])
-                with left:
-                    public_url = img.get("public_url")
-                    if not public_url and img.get("storage_path"):
-                        try:
-                            signed = supabase.storage.from_(SUPABASE_BUCKET).create_signed_url(img["storage_path"], 3600)
-                            public_url = signed.get("signedURL") if isinstance(signed, dict) else None
-                        except Exception:
-                            pass
+                with st.container():
+                    left, right = st.columns([4, 1])
 
-                    st.markdown('<span class="tag-label">📸 The Moment</span>', unsafe_allow_html=True)
-                    if public_url:
-                        st.image(public_url, width=800)
-                    else:
-                        st.write(f"Image: {img['filename']} (not accessible)")
+                    with left:
+                        public_url = img.get("public_url")
+                        if not public_url and img.get("storage_path"):
+                            try:
+                                signed = supabase.storage.from_(SUPABASE_BUCKET).create_signed_url(img["storage_path"], 3600)
+                                public_url = signed.get("signedURL") if isinstance(signed, dict) else None
+                            except Exception:
+                                pass
 
-                    caps = get_captions_for_image(img["id"])
-                    if caps:
-                        st.markdown("""
-                        <div class="captions-panel-header" style="margin-top:1rem;">
-                          <div class="captions-panel-title">💬 Other Captions</div>
-                          <span class="live-badge">LIVE</span>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        for c in caps:
-                            winner_class = "caption-winner" if c['winner'] else ""
-                            crown = "👑 " if c['winner'] else ""
-                            col1, col2 = st.columns([5, 1])
-                            with col1:
-                                st.markdown(f"""
-                                <div class="caption-card {winner_class}">
-                                  {_avatar_html(c['player_name'])}
-                                  <div>
-                                    <div class="caption-player">{crown}{c['player_name']}</div>
-                                    <div class="caption-text">"{c['text']}"</div>
-                                  </div>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            with col2:
-                                if c['winner']:
-                                    st.write("👑")
-                                else:
-                                    if st.button("👑", key=f"win_{c['id']}"):
-                                        _choose_winner_caption(img['id'], c['id'])
-                                        st.rerun()
-                    else:
-                        st.markdown("_No captions yet — waiting for players..._")
+                        st.markdown('<span class="tag-label">📸 The Moment</span>', unsafe_allow_html=True)
 
-                with right:
-                    if st.button("🗑️ Delete", key=f"del_{img['id']}"):
-                        delete_image_db(img["id"])
-                        st.rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
+                        if public_url:
+                            st.image(public_url, width=800)
+                        else:
+                            st.write(f"Image: {img['filename']} (not accessible)")
 
-        st.markdown("---")
+                        caps = get_captions_for_image(img["id"])
+                        if caps:
+                            st.markdown("""
+                            <div class="captions-panel-header" style="margin-top:1rem;">
+                                <div class="captions-panel-title">💬 Other Captions</div>
+                                <span class="live-badge">LIVE</span>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                            for c in caps:
+                                winner_class = "caption-winner" if c['winner'] else ""
+                                crown = "👑 " if c['winner'] else ""
+                                col1, col2 = st.columns([5, 1])
+
+                                with col1:
+                                    st.markdown(f"""
+                                    <div class="caption-card {winner_class}">
+                                        {_avatar_html(c['player_name'])}
+                                        <div>
+                                            <div class="caption-player">{crown}{c['player_name']}</div>
+                                            <div class="caption-text">"{c['text']}"</div>
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+
+                                with col2:
+                                    if c['winner']:
+                                        st.write("👑")
+                                    else:
+                                        if st.button("👑", key=f"win_{c['id']}"):
+                                            _choose_winner_caption(img['id'], c['id'])
+                                            st.rerun()
+                        else:
+                            st.markdown("_No captions yet — waiting for players..._")
+
+                    with right:
+                        if st.button("🗑️ Delete", key=f"del_{img['id']}"):
+                            delete_image_db(img["id"])
+                            st.rerun()
+
+                st.markdown("---")
+
         if st.checkbox("✅ I have chosen a winner for every image") and st.button("🏁 Submit Winners"):
             _finish_game(room_id)
             st.rerun()
-
 
 # ── PLAYER UI ───────────────────────────────────────────────────────────────────
 else:
     # Top bar
     col_name, col_spacer, col_status = st.columns([2, 3, 2])
+
     with col_name:
-        st.markdown('<div class="panel-box" style="padding:0.7rem 1.2rem;">', unsafe_allow_html=True)
-        player_name = st.text_input("Your name", value="Player1", label_visibility="collapsed")
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container():
+            player_name = st.text_input("Your name", value="Player1", label_visibility="collapsed")
+
     with col_status:
         finished = _is_game_finished(room_id) if room_id else False
         status_text = "🏁 Game Finished" if finished else "⏳ Waiting for Host..."
@@ -804,16 +799,15 @@ else:
         st.stop()
 
     # How to play
-    st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-    st.markdown('<span class="tag-label">🎮 How to Play</span>', unsafe_allow_html=True)
-    st.markdown("""
-    1. **Choose your player name** above.
-    2. **Type your caption** below the image.
-    3. **Submit** as many captions as you want.
-    4. When the host has chosen the winner... **all will be revealed** 🎉
-    """)
-    st.subheader("HAVE FUN! 🚀")
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container():
+        st.markdown('<span class="tag-label">🎮 How to Play</span>', unsafe_allow_html=True)
+        st.markdown("""
+        1. **Choose your player name** above.
+        2. **Type your caption** below the image.
+        3. **Submit** as many captions as you want.
+        4. When the host has chosen the winner... **all will be revealed** 🎉
+        """)
+        st.subheader("HAVE FUN! 🚀")
 
     st.markdown("---")
 
@@ -825,67 +819,76 @@ else:
             col_img, col_caps = st.columns([3, 2])
 
             with col_img:
-                public_url = img.get("public_url")
-                if not public_url and img.get("storage_path"):
-                    try:
-                        signed = supabase.storage.from_(SUPABASE_BUCKET).create_signed_url(img["storage_path"], 3600)
-                        public_url = signed.get("signedURL") if isinstance(signed, dict) else None
-                    except Exception:
-                        pass
+                with st.container():
+                    public_url = img.get("public_url")
+                    if not public_url and img.get("storage_path"):
+                        try:
+                            signed = supabase.storage.from_(SUPABASE_BUCKET).create_signed_url(img["storage_path"], 3600)
+                            public_url = signed.get("signedURL") if isinstance(signed, dict) else None
+                        except Exception:
+                            pass
 
-                st.markdown('<div class="panel-box">', unsafe_allow_html=True)
-                st.markdown('<span class="tag-label">📸 The Moment</span>', unsafe_allow_html=True)
-                if public_url:
-                    st.image(public_url, width=700)
-                else:
-                    st.write(f"Image: {img['filename']} (not accessible)")
+                    st.markdown('<span class="tag-label">📸 The Moment</span>', unsafe_allow_html=True)
 
-                if not _is_game_finished(room_id):
-                    st.markdown('<span class="tag-label" style="background:var(--accent-purple);color:#fff;">✏️ Your Caption</span>', unsafe_allow_html=True)
-                    with st.form(f"form_{img['id']}"):
-                        caption_text = st.text_input("", placeholder="Type something funny here...", key=f"input_{img['id']}", label_visibility="collapsed")
-                        submitted = st.form_submit_button("SUBMIT ▶")
-                        if submitted and caption_text.strip():
-                            add_caption_db(img["id"], player_name, caption_text.strip())
-                            st.toast("✅ Caption submitted!")
-                            st.rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
+                    if public_url:
+                        st.image(public_url, width=700)
+                    else:
+                        st.write(f"Image: {img['filename']} (not accessible)")
+
+                    if not _is_game_finished(room_id):
+                        st.markdown(
+                            '<span class="tag-label" style="background:var(--accent-purple);color:#fff;">✏️ Your Caption</span>',
+                            unsafe_allow_html=True
+                        )
+
+                        with st.form(f"form_{img['id']}"):
+                            caption_text = st.text_input(
+                                "",
+                                placeholder="Type something funny here...",
+                                key=f"input_{img['id']}",
+                                label_visibility="collapsed"
+                            )
+                            submitted = st.form_submit_button("SUBMIT ▶")
+
+                            if submitted and caption_text.strip():
+                                add_caption_db(img["id"], player_name, caption_text.strip())
+                                st.toast("✅ Caption submitted!")
+                                st.rerun()
 
             with col_caps:
-                st.markdown('<div class="panel-box" style="height:100%;">', unsafe_allow_html=True)
-                st.markdown("""
-                <div class="captions-panel-header">
-                  <div class="captions-panel-title">💬 Other Captions</div>
-                  <span class="live-badge">LIVE</span>
-                </div>
-                """, unsafe_allow_html=True)
-
-                caps = get_captions_for_image(img["id"])
-                if caps:
-                    for c in caps:
-                        winner_class = "caption-winner" if c.get('winner') else ""
-                        crown = "👑 " if c.get('winner') else ""
-                        st.markdown(f"""
-                        <div class="caption-card {winner_class}">
-                          {_avatar_html(c['player_name'])}
-                          <div>
-                            <div class="caption-player">{crown}{c['player_name']}</div>
-                            <div class="caption-text">"{c['text']}"</div>
-                          </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                else:
+                with st.container():
                     st.markdown("""
-                    <div class="caption-card" style="opacity:0.5; border-style: dashed;">
-                      <div class="caption-text">⏳ Waiting for more...</div>
+                    <div class="captions-panel-header">
+                        <div class="captions-panel-title">💬 Other Captions</div>
+                        <span class="live-badge">LIVE</span>
                     </div>
                     """, unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
 
-        # Footer info bar
-        if room_id:
-            st.markdown(f"""
-            <div style="margin-top:2rem;" class="info-bar">
-              <span class="info-chip">Room: #{str(room_id)[:6].upper()}</span>
-            </div>
-            """, unsafe_allow_html=True)
+                    caps = get_captions_for_image(img["id"])
+                    if caps:
+                        for c in caps:
+                            winner_class = "caption-winner" if c.get('winner') else ""
+                            crown = "👑 " if c.get('winner') else ""
+                            st.markdown(f"""
+                            <div class="caption-card {winner_class}">
+                                {_avatar_html(c['player_name'])}
+                                <div>
+                                    <div class="caption-player">{crown}{c['player_name']}</div>
+                                    <div class="caption-text">"{c['text']}"</div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.markdown("""
+                        <div class="caption-card" style="opacity:0.5; border-style: dashed;">
+                            <div class="caption-text">⏳ Waiting for more...</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+    # Footer info bar
+    if room_id:
+        st.markdown(f"""
+        <div style="margin-top:2rem;" class="info-bar">
+            <span class="info-chip">Room: #{str(room_id)[:6].upper()}</span>
+        </div>
+        """, unsafe_allow_html=True)
