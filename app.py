@@ -290,6 +290,26 @@ hr {
   margin-bottom: 0.8rem;
 }
 
+.plain-section-label {
+  display: inline-block;
+  background: transparent !important;
+  color: var(--accent-cyan) !important;
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 900;
+  font-size: 1.08rem;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  margin-bottom: 0.8rem;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.plain-section-label.purple {
+  color: var(--accent-purple) !important;
+}
+
 /* ── Streamlit form ── */
 [data-testid="stForm"] {
   background: var(--panel-bg) !important;
@@ -615,7 +635,7 @@ if role == "host":
                         pass
 
                 with st.container():
-                    st.markdown('<span class="tag-label">📸 The Moment</span>', unsafe_allow_html=True)
+                    st.markdown('<span class="plain-section-label">📸 The Moment</span>', unsafe_allow_html=True)
 
                     if public_url:
                         st.image(public_url, width=700)
@@ -727,7 +747,7 @@ if role == "host":
                             except Exception:
                                 pass
 
-                        st.markdown('<span class="tag-label">📸 The Moment</span>', unsafe_allow_html=True)
+                        st.markdown('<span class="plain-section-label">📸 The Moment</span>', unsafe_allow_html=True)
 
                         if public_url:
                             st.image(public_url, width=800)
@@ -800,7 +820,7 @@ else:
 
     # How to play
     with st.container():
-        st.markdown('<span class="tag-label">🎮 How to Play</span>', unsafe_allow_html=True)
+        st.markdown('<span class="plain-section-label">🎮 How to Play</span>', unsafe_allow_html=True)
         st.markdown("""
         1. **Choose your player name** above.
         2. **Type your caption** below the image.
@@ -828,7 +848,7 @@ else:
                         except Exception:
                             pass
 
-                    st.markdown('<span class="tag-label">📸 The Moment</span>', unsafe_allow_html=True)
+                    st.markdown('<span class="plain-section-label">📸 The Moment</span>', unsafe_allow_html=True)
 
                     if public_url:
                         st.image(public_url, width=700)
@@ -837,7 +857,7 @@ else:
 
                     if not _is_game_finished(room_id):
                         st.markdown(
-                            '<span class="tag-label" style="background:var(--accent-purple);color:#fff;">✏️ Your Caption</span>',
+                            '<span class="plain-section-label purple">✏️ Your Caption</span>',
                             unsafe_allow_html=True
                         )
 
