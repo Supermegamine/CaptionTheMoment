@@ -9,6 +9,10 @@ import streamlit as st
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from supabase import create_client
+from streamlit_autorefresh import st_autorefresh
+
+# Fixed set of reactions players can drop on captions (cosmetic only).
+ALLOWED_EMOJIS = ["😂", "🔥", "❤️", "😮"]
 
 # Page config must come after importing streamlit
 st.set_page_config(page_title="Caption The Moment", layout="wide")
@@ -412,6 +416,39 @@ hr {
   letter-spacing: 1px;
   color: rgba(255,255,255,0.7);
 }
+
+/* Vote tally badge on a caption */
+.vote-badge {
+  display: inline-block;
+  background: rgba(0, 229, 255, 0.18);
+  border: 1px solid rgba(0, 229, 255, 0.45);
+  color: var(--accent-cyan);
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 800;
+  font-size: 0.72rem;
+  letter-spacing: 0.5px;
+  padding: 1px 9px;
+  border-radius: 30px;
+  margin-left: 0.4rem;
+}
+
+/* Reaction tally row under a caption */
+.reaction-bar {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.reaction-chip {
+  background: rgba(255,255,255,0.10);
+  border: 1px solid var(--panel-border);
+  border-radius: 30px;
+  padding: 1px 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -471,22 +508,26 @@ def list_room_images(room_id: str) -> List[Dict]:
     res = builder.execute()
     return _extract_data(res)
 
-def add_caption_db(image_id: str, player_name: str, text: str):
+def add_caption_db(image_id: str, player_id: str, player_name: str, text: str):
     cid = str(uuid.uuid4())
     payload = {
         "id": cid,
         "image_id": image_id,
+        "player_id": player_id,
         "player_name": player_name,
         "text": text,
-        "winner": False
     }
     res = sb_admin.table("captions").insert(payload).execute()
 
 def get_captions_for_image(image_id: str) -> List[Dict]:
-    builder = sb_admin.table("captions").select("id,player_name,text,created_at,winner").eq("image_id", image_id)
+    builder = sb_admin.table("captions").select("id,player_id,player_name,text,created_at").eq("image_id", image_id)
     builder = _apply_order(builder, "created_at", ascending=True)
     res = builder.execute()
     return _extract_data(res)
+
+def delete_caption_db(caption_id: str):
+    # votes and reactions referencing this caption are removed via ON DELETE CASCADE.
+    sb_admin.table("captions").delete().eq("id", caption_id).execute()
 
 def delete_image_db(image_id: str):
     res = sb_admin.table("images").select("storage_path").eq("id", image_id).execute()
@@ -569,24 +610,176 @@ def _extract_data(response):
     else:
         return response or []
 
-def _choose_winner_caption(image_id, caption_id):
-    sb_admin.table("captions").update({"winner": False}).eq("image_id", image_id).execute()
-    sb_admin.table("captions").update({"winner": True}).eq("id", caption_id).execute()
-
-def _finish_game(room_id):
-    sb_admin.table("rooms").update({"finished": True}).eq("id", room_id).execute()
-
-def _reopen_game(room_id):
-    sb_admin.table("rooms").update({"finished": False}).eq("id", room_id).execute()
-
-def _is_game_finished(room_id):
-    res = sb_admin.table("rooms").select("finished").eq("id", room_id).execute()
+# ── Phase helpers ─────────────────────────────────────────────────────────────
+def get_room_phase(room_id) -> str:
+    res = sb_admin.table("rooms").select("phase").eq("id", room_id).execute()
     data = _extract_data(res)
-    return data[0]["finished"] if data else False
+    return data[0]["phase"] if data else "submit"
 
+def set_room_phase(room_id, phase: str):
+    sb_admin.table("rooms").update({"phase": phase}).eq("id", room_id).execute()
+
+# ── Player helpers ────────────────────────────────────────────────────────────
+def get_player(player_id) -> Optional[Dict]:
+    res = sb_admin.table("players").select("id,room_id,display_name").eq("id", player_id).execute()
+    data = _extract_data(res)
+    return data[0] if data else None
+
+def create_player(player_id, room_id, display_name: str):
+    payload = {"id": player_id, "room_id": room_id, "display_name": display_name}
+    sb_admin.table("players").insert(payload).execute()
+
+def update_player_name(player_id, display_name: str):
+    sb_admin.table("players").update({"display_name": display_name}).eq("id", player_id).execute()
+    # Keep the denormalized name on this player's captions in sync.
+    sb_admin.table("captions").update({"player_name": display_name}).eq("player_id", player_id).execute()
+
+# ── Vote helpers ──────────────────────────────────────────────────────────────
+def cast_vote(image_id, caption_id, voter_id):
+    # One vote per player per image: replace any existing vote for this image.
+    sb_admin.table("votes").delete().eq("image_id", image_id).eq("voter_id", voter_id).execute()
+    payload = {"id": str(uuid.uuid4()), "image_id": image_id, "caption_id": caption_id, "voter_id": voter_id}
+    sb_admin.table("votes").insert(payload).execute()
+
+def get_votes_for_image(image_id) -> List[Dict]:
+    res = sb_admin.table("votes").select("caption_id,voter_id").eq("image_id", image_id).execute()
+    return _extract_data(res)
+
+# ── Reaction helpers ──────────────────────────────────────────────────────────
+def toggle_reaction(caption_id, player_id, emoji: str):
+    res = (sb_admin.table("reactions").select("id")
+           .eq("caption_id", caption_id).eq("player_id", player_id).eq("emoji", emoji).execute())
+    data = _extract_data(res)
+    if data:
+        sb_admin.table("reactions").delete().eq("id", data[0]["id"]).execute()
+    else:
+        payload = {"id": str(uuid.uuid4()), "caption_id": caption_id, "player_id": player_id, "emoji": emoji}
+        sb_admin.table("reactions").insert(payload).execute()
+
+def get_reactions_for_captions(caption_ids: List[str]) -> List[Dict]:
+    if not caption_ids:
+        return []
+    res = sb_admin.table("reactions").select("caption_id,player_id,emoji").in_("caption_id", caption_ids).execute()
+    return _extract_data(res)
+
+def compute_winner_caption_id(image_id, captions: List[Dict]) -> Optional[str]:
+    """Caption with the most votes wins; ties broken by earliest caption (captions arrive
+    ordered ascending by created_at)."""
+    votes = get_votes_for_image(image_id)
+    if not votes:
+        return None
+    counts: Dict[str, int] = {}
+    for v in votes:
+        counts[v["caption_id"]] = counts.get(v["caption_id"], 0) + 1
+    order = {c["id"]: i for i, c in enumerate(captions)}
+    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], order.get(kv[0], 1_000_000)))
+    return ranked[0][0] if ranked else None
+
+# ── Rendering helpers ─────────────────────────────────────────────────────────
 def _avatar_html(name: str) -> str:
     initials = "".join(w[0].upper() for w in name.split()[:2]) if name else "?"
     return f'<div class="avatar">{initials}</div>'
+
+def image_public_url(img: Dict) -> Optional[str]:
+    public_url = img.get("public_url")
+    if not public_url and img.get("storage_path"):
+        try:
+            signed = supabase.storage.from_(SUPABASE_BUCKET).create_signed_url(img["storage_path"], 3600)
+            public_url = signed.get("signedURL") if isinstance(signed, dict) else None
+        except Exception:
+            pass
+    return public_url
+
+def render_image(img: Dict, width: int = 700):
+    st.markdown('<span class="plain-section-label">📸 The Moment</span>', unsafe_allow_html=True)
+    url = image_public_url(img)
+    if url:
+        st.image(url, width=width)
+    else:
+        st.write(f"Image: {img['filename']} (not accessible)")
+
+def _reactions_html(summary: Dict[str, int]) -> str:
+    chips = [f'<span class="reaction-chip">{e} {summary.get(e, 0)}</span>'
+             for e in ALLOWED_EMOJIS if summary.get(e, 0)]
+    return f'<div class="reaction-bar">{"".join(chips)}</div>' if chips else ""
+
+def _caption_card_html(c: Dict, *, is_winner=False, vote_count: Optional[int] = None,
+                       reactions_summary: Optional[Dict[str, int]] = None) -> str:
+    winner_class = "caption-winner" if is_winner else ""
+    crown = "👑 " if is_winner else ""
+    vote_badge = f'<span class="vote-badge">🗳️ {vote_count}</span>' if vote_count is not None else ""
+    reacts = _reactions_html(reactions_summary or {})
+    return f"""
+    <div class="caption-card {winner_class}">
+        {_avatar_html(c['player_name'])}
+        <div style="flex:1;">
+            <div class="caption-player">{crown}{c['player_name']}{vote_badge}</div>
+            <div class="caption-text">"{c['text']}"</div>
+            {reacts}
+        </div>
+    </div>"""
+
+def render_caption_list(img: Dict, captions: List[Dict], *, role: str,
+                        player_id: Optional[str], phase: str):
+    """Render every caption for an image, with controls appropriate to the viewer and phase.
+    Host sees a delete button on each caption (all phases). Players vote (reveal only, not
+    their own caption) and react (reveal + results)."""
+    image_id = img["id"]
+    caption_ids = [c["id"] for c in captions]
+    scored = phase in ("reveal", "results")
+
+    vote_counts: Dict[str, int] = {}
+    my_vote: Optional[str] = None
+    if scored:
+        for v in get_votes_for_image(image_id):
+            vote_counts[v["caption_id"]] = vote_counts.get(v["caption_id"], 0) + 1
+            if player_id and v["voter_id"] == player_id:
+                my_vote = v["caption_id"]
+
+    react_summary: Dict[str, Dict[str, int]] = {cid: {} for cid in caption_ids}
+    my_reacts: Dict[str, set] = {cid: set() for cid in caption_ids}
+    if scored:
+        for r in get_reactions_for_captions(caption_ids):
+            cid, e = r["caption_id"], r["emoji"]
+            react_summary.setdefault(cid, {})
+            react_summary[cid][e] = react_summary[cid].get(e, 0) + 1
+            if player_id and r["player_id"] == player_id:
+                my_reacts.setdefault(cid, set()).add(e)
+
+    winner_id = compute_winner_caption_id(image_id, captions) if phase == "results" else None
+
+    for c in captions:
+        cid = c["id"]
+        vc = vote_counts.get(cid, 0) if scored else None
+        card = _caption_card_html(
+            c,
+            is_winner=(cid == winner_id),
+            vote_count=vc,
+            reactions_summary=react_summary.get(cid, {}),
+        )
+        main_col, ctrl_col = st.columns([5, 2])
+        with main_col:
+            st.markdown(card, unsafe_allow_html=True)
+        with ctrl_col:
+            if role == "player" and phase == "reveal" and player_id:
+                if c.get("player_id") == player_id:
+                    st.caption("your caption")
+                else:
+                    voted = (my_vote == cid)
+                    if st.button("✅ Voted" if voted else "🗳️ Vote", key=f"vote_{cid}"):
+                        cast_vote(image_id, cid, player_id)
+                        st.rerun()
+            if role == "player" and scored and player_id:
+                rcols = st.columns(len(ALLOWED_EMOJIS))
+                for i, e in enumerate(ALLOWED_EMOJIS):
+                    active = e in my_reacts.get(cid, set())
+                    if rcols[i].button(f"{e}{'·' if active else ''}", key=f"react_{cid}_{i}"):
+                        toggle_reaction(cid, player_id, e)
+                        st.rerun()
+            if role == "host":
+                if st.button("🗑️", key=f"delcap_{cid}"):
+                    delete_caption_db(cid)
+                    st.rerun()
 
 # ── Main UI ─────────────────────────────────────────────────────────────────────
 room_id = _get_param("room_id", None)

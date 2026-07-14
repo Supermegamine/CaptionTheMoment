@@ -1,4 +1,5 @@
 streamlit>=1.30.0
+streamlit-autorefresh>=1.0.1
 supabase
 psycopg2-binary
 Pillow>=9.0.0
