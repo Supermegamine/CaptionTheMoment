@@ -4,10 +4,6 @@
 
 Think *Cards Against Humanity* meets *Jackbox*: a host uploads a picture, players race to caption it from their own phones, and everyone laughs at the results together.
 
-**🎮 Live demo:** [captionthemoment.onrender.com](https://captionthemoment.onrender.com/)
-
-> ⚠️ The app is hosted on Render's free tier, so the first request after a period of inactivity can take **30–60 seconds** to spin up. Please be patient on the first load.
-
 ---
 
 ## What it does
