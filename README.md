@@ -1,3 +1,21 @@
+# 📸 Caption The Moment — Demo branch
+
+This branch is a **static demo** of the game. It runs completely in the browser
+via [stlite](https://github.com/whitphx/stlite) (Streamlit on WebAssembly), so it can be
+hosted on GitHub Pages without any backend. There is no Supabase/Postgres here: the
+room, images and captions are mock data from [`mock_data.py`](mock_data.py), kept in
+`st.session_state` (per browser tab, reset on reload).
+
+- Starts in the **Host view** with a pre-filled room. Toggle to **Player view** to add captions.
+- Host can pick winners (👑), delete captions/images, upload images (local only) and finish the game.
+- Deploys automatically via [`.github/workflows/deploy-demo.yml`](.github/workflows/deploy-demo.yml)
+  on every push to `demo` (Settings → Pages → Source: *GitHub Actions*).
+
+Run locally: `pip install -r requirements.txt && streamlit run app.py`
+or serve the stlite build: `python -m http.server` and open `index.html`.
+
+---
+
 # 📸 Caption The Moment
 
 **A real-time, multiplayer party game where friends compete to write the funniest caption for a photo.**

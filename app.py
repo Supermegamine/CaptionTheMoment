@@ -1,21 +1,23 @@
-import os
-import io
-from uuid import uuid4
-from pathlib import Path
+"""Caption The Moment — DEMO build.
+
+Runs entirely in the browser (stlite / Pyodide) on GitHub Pages. There is no
+Supabase / Postgres here: all data lives in ``st.session_state`` and is seeded
+from ``mock_data.py``. Reloading the page resets the demo.
+"""
+import html
 import uuid
-from typing import List, Dict, Optional
+from pathlib import Path
+from typing import Dict, List
 
 import streamlit as st
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from supabase import create_client
-from streamlit_autorefresh import st_autorefresh
+
+import mock_data
 
 # Fixed set of reactions players can drop on captions (cosmetic only).
 ALLOWED_EMOJIS = ["😂", "🔥", "❤️", "😮"]
 
 # Page config must come after importing streamlit
-st.set_page_config(page_title="Caption The Moment", layout="wide")
+st.set_page_config(page_title="Caption The Moment — Demo", layout="wide")
 
 # ── Custom CSS to match the screenshot design ──────────────────────────────────
 st.markdown("""
@@ -452,389 +454,171 @@ hr {
 </style>
 """, unsafe_allow_html=True)
 
-# Now safely read env vars (Render provides these as env vars)
-SUPABASE_URL = (
-        os.environ.get('SUPABASE_URL')
-        or st.secrets["supabase"]["url"]
-)
-SUPABASE_KEY = (
-        os.environ.get('SUPABASE_KEY')
-        or st.secrets["supabase"]["key"]
-)
-POSTGRES_URI = (
-        os.environ.get('POSTGRES_URI')
-        or st.secrets["postgres"]["uri"]
-)
-SERVICE_ROLE = (
-        os.environ.get('SUPABASE_SERVICE_ROLE')
-        or st.secrets["supabase"].get("role")
-)
-SUPABASE_BUCKET = (
-        os.environ.get('SUPABASE_BUCKET')
-        or st.secrets.get("supabase", {}).get("bucket", "images")
-)
-APP_BASE_URL = (
-        os.environ.get('APP_BASE_URL')
-        or st.secrets.get("app", {}).get("url", "http://localhost:8501")
-)
+# ── Mock "database" (lives in st.session_state, local to this browser tab) ────
+BASE_DIR = Path(__file__).parent
 
-sb_admin = create_client(SUPABASE_URL, SERVICE_ROLE)
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- Database helpers ---
-def get_conn():
-    return psycopg2.connect(POSTGRES_URI, cursor_factory=RealDictCursor)
-
-def create_room_db(title: str = "") -> str:
-    rid = str(uuid.uuid4())
-    payload = {"id": rid, "title": title}
-    res = sb_admin.table("rooms").insert(payload).execute()
-    _extract_data(res)
-    return rid
-
-def save_image_db(room_id: str, img_id: str, filename: str, storage_path: str, public_url: Optional[str]):
-    payload = {
-        "id": img_id,
-        "room_id": room_id,
-        "filename": filename,
-        "storage_path": storage_path,
-        "public_url": public_url
+def _seed() -> Dict:
+    """Build a fresh in-memory room from mock_data."""
+    images, captions = [], []
+    for img in mock_data.IMAGES:
+        try:
+            data = (BASE_DIR / img["file"]).read_bytes()
+        except OSError:
+            data = None
+        images.append({"id": img["id"], "filename": img["filename"], "data": data})
+        for name, text in img["captions"]:
+            captions.append({
+                "id": str(uuid.uuid4()),
+                "image_id": img["id"],
+                "player_name": name,
+                "text": text,
+                "winner": False,
+            })
+    return {
+        "room_id": mock_data.ROOM_ID,
+        "title": mock_data.ROOM_TITLE,
+        "finished": False,
+        "images": images,
+        "captions": captions,
     }
-    res = sb_admin.table("images").insert(payload).execute()
 
-def list_room_images(room_id: str) -> List[Dict]:
-    builder = sb_admin.table("images").select("id,filename,storage_path,public_url").eq("room_id", room_id)
-    builder = _apply_order(builder, "uploaded_at", ascending=True)
-    res = builder.execute()
-    return _extract_data(res)
 
-def add_caption_db(image_id: str, player_id: str, player_name: str, text: str):
-    cid = str(uuid.uuid4())
-    payload = {
-        "id": cid,
-        "image_id": image_id,
-        "player_id": player_id,
-        "player_name": player_name,
-        "text": text,
-    }
-    res = sb_admin.table("captions").insert(payload).execute()
+if "db" not in st.session_state:
+    st.session_state.db = _seed()
+if "view" not in st.session_state:
+    st.session_state.view = "Host"
+
+DB: Dict = st.session_state.db
+
+
+def reset_demo():
+    st.session_state.db = _seed()
+
+
+def list_room_images() -> List[Dict]:
+    return DB["images"]
+
 
 def get_captions_for_image(image_id: str) -> List[Dict]:
-    builder = sb_admin.table("captions").select("id,player_id,player_name,text,created_at").eq("image_id", image_id)
-    builder = _apply_order(builder, "created_at", ascending=True)
-    res = builder.execute()
-    return _extract_data(res)
+    return [c for c in DB["captions"] if c["image_id"] == image_id]
+
+
+def add_caption_db(image_id: str, player_name: str, text: str):
+    DB["captions"].append({
+        "id": str(uuid.uuid4()),
+        "image_id": image_id,
+        "player_name": player_name,
+        "text": text,
+        "winner": False,
+    })
+
 
 def delete_caption_db(caption_id: str):
-    # votes and reactions referencing this caption are removed via ON DELETE CASCADE.
-    sb_admin.table("captions").delete().eq("id", caption_id).execute()
+    DB["captions"] = [c for c in DB["captions"] if c["id"] != caption_id]
+
+
+def add_image_db(filename: str, data: bytes):
+    DB["images"].append({"id": str(uuid.uuid4()), "filename": filename, "data": data})
+
 
 def delete_image_db(image_id: str):
-    res = sb_admin.table("images").select("storage_path").eq("id", image_id).execute()
-    rows = _extract_data(res)
-    storage_path = rows[0]["storage_path"] if rows else None
-    _ = sb_admin.table("images").delete().eq("id", image_id).execute()
-    _ = sb_admin.table("captions").delete().eq("image_id", image_id).execute()
-    return storage_path
+    DB["images"] = [i for i in DB["images"] if i["id"] != image_id]
+    DB["captions"] = [c for c in DB["captions"] if c["image_id"] != image_id]
 
-def upload_image(room_id, uploaded_file):
-    img_id = str(uuid4())
-    original_name = uploaded_file.name
-    ext = Path(original_name).suffix or ""
-    storage_path = f"{room_id}/{img_id}{ext}"
 
-    try:
-        file_bytes = uploaded_file.read()
-    except Exception as e:
-        st.error(f"Failed to read file {original_name}: {e}")
-        return None, None, None, None, False
+def _choose_winner_caption(image_id: str, caption_id: str):
+    """Exactly one winner per image."""
+    for c in DB["captions"]:
+        if c["image_id"] == image_id:
+            c["winner"] = (c["id"] == caption_id)
 
-    res = None
-    try:
-        res = supabase.storage.from_(SUPABASE_BUCKET).upload(storage_path, file_bytes)
-    except Exception as e:
-        try:
-            bio = io.BytesIO(file_bytes)
-            res = supabase.storage.from_(SUPABASE_BUCKET).upload(
-                storage_path, bio, {"Content-Type": "application/octet-stream"}
-            )
-        except Exception as e2:
-            st.error(f"Upload failed for {original_name}: {e2}")
-            return None, None, None, None, False
 
-    success = res is not None and not (isinstance(res, dict) and res.get("error"))
-    if not success:
-        st.error(f"Upload failed for {original_name}: unexpected response")
-        return None, None, None, None, False
+def _is_game_finished() -> bool:
+    return DB["finished"]
 
-    public_url = None
-    try:
-        public_url = supabase.storage.from_(SUPABASE_BUCKET).get_public_url(storage_path)
-    except Exception:
-        try:
-            signed = supabase.storage.from_(SUPABASE_BUCKET).create_signed_url(storage_path, 60 * 60)
-            public_url = signed.get("signedURL") if isinstance(signed, dict) else None
-        except Exception:
-            pass
 
-    return img_id, original_name, storage_path, public_url, True
+def _finish_game():
+    DB["finished"] = True
 
-def _apply_order(builder, column: str, ascending=True):
-    try:
-        return builder.order(column, ascending=True)
-    except TypeError:
-        try:
-            return builder.order(column, {"ascending": ascending})
-        except Exception:
-            return builder.order(column)
 
-def _get_param(key, default=None):
-    params = st.query_params
-    val = params.get(key, default)
-    if isinstance(val, list):
-        return val[0] if val else default
-    return val
+def _reopen_game():
+    DB["finished"] = False
 
-def _set_params(**kwargs):
-    if hasattr(st, "query_params"):
-        for k, v in kwargs.items():
-            st.query_params[k] = v if isinstance(v, list) else [v]
-    elif hasattr(st, "experimental_set_query_params"):
-        st.experimental_set_query_params(**kwargs)
-
-def _extract_data(response):
-    if hasattr(response, "data"):
-        return response.data
-    elif isinstance(response, dict) and "data" in response:
-        return response["data"]
-    else:
-        return response or []
-
-# ── Phase helpers ─────────────────────────────────────────────────────────────
-def get_room_phase(room_id) -> str:
-    res = sb_admin.table("rooms").select("phase").eq("id", room_id).execute()
-    data = _extract_data(res)
-    return data[0]["phase"] if data else "submit"
-
-def set_room_phase(room_id, phase: str):
-    sb_admin.table("rooms").update({"phase": phase}).eq("id", room_id).execute()
-
-# ── Player helpers ────────────────────────────────────────────────────────────
-def get_player(player_id) -> Optional[Dict]:
-    res = sb_admin.table("players").select("id,room_id,display_name").eq("id", player_id).execute()
-    data = _extract_data(res)
-    return data[0] if data else None
-
-def create_player(player_id, room_id, display_name: str):
-    payload = {"id": player_id, "room_id": room_id, "display_name": display_name}
-    sb_admin.table("players").insert(payload).execute()
-
-def update_player_name(player_id, display_name: str):
-    sb_admin.table("players").update({"display_name": display_name}).eq("id", player_id).execute()
-    # Keep the denormalized name on this player's captions in sync.
-    sb_admin.table("captions").update({"player_name": display_name}).eq("player_id", player_id).execute()
-
-# ── Vote helpers ──────────────────────────────────────────────────────────────
-def cast_vote(image_id, caption_id, voter_id):
-    # One vote per player per image: replace any existing vote for this image.
-    sb_admin.table("votes").delete().eq("image_id", image_id).eq("voter_id", voter_id).execute()
-    payload = {"id": str(uuid.uuid4()), "image_id": image_id, "caption_id": caption_id, "voter_id": voter_id}
-    sb_admin.table("votes").insert(payload).execute()
-
-def get_votes_for_image(image_id) -> List[Dict]:
-    res = sb_admin.table("votes").select("caption_id,voter_id").eq("image_id", image_id).execute()
-    return _extract_data(res)
-
-# ── Reaction helpers ──────────────────────────────────────────────────────────
-def toggle_reaction(caption_id, player_id, emoji: str):
-    res = (sb_admin.table("reactions").select("id")
-           .eq("caption_id", caption_id).eq("player_id", player_id).eq("emoji", emoji).execute())
-    data = _extract_data(res)
-    if data:
-        sb_admin.table("reactions").delete().eq("id", data[0]["id"]).execute()
-    else:
-        payload = {"id": str(uuid.uuid4()), "caption_id": caption_id, "player_id": player_id, "emoji": emoji}
-        sb_admin.table("reactions").insert(payload).execute()
-
-def get_reactions_for_captions(caption_ids: List[str]) -> List[Dict]:
-    if not caption_ids:
-        return []
-    res = sb_admin.table("reactions").select("caption_id,player_id,emoji").in_("caption_id", caption_ids).execute()
-    return _extract_data(res)
-
-def compute_winner_caption_id(image_id, captions: List[Dict]) -> Optional[str]:
-    """Caption with the most votes wins; ties broken by earliest caption (captions arrive
-    ordered ascending by created_at)."""
-    votes = get_votes_for_image(image_id)
-    if not votes:
-        return None
-    counts: Dict[str, int] = {}
-    for v in votes:
-        counts[v["caption_id"]] = counts.get(v["caption_id"], 0) + 1
-    order = {c["id"]: i for i, c in enumerate(captions)}
-    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], order.get(kv[0], 1_000_000)))
-    return ranked[0][0] if ranked else None
 
 # ── Rendering helpers ─────────────────────────────────────────────────────────
 def _avatar_html(name: str) -> str:
     initials = "".join(w[0].upper() for w in name.split()[:2]) if name else "?"
-    return f'<div class="avatar">{initials}</div>'
+    return f'<div class="avatar">{html.escape(initials)}</div>'
 
-def image_public_url(img: Dict) -> Optional[str]:
-    public_url = img.get("public_url")
-    if not public_url and img.get("storage_path"):
-        try:
-            signed = supabase.storage.from_(SUPABASE_BUCKET).create_signed_url(img["storage_path"], 3600)
-            public_url = signed.get("signedURL") if isinstance(signed, dict) else None
-        except Exception:
-            pass
-    return public_url
 
 def render_image(img: Dict, width: int = 700):
     st.markdown('<span class="plain-section-label">📸 The Moment</span>', unsafe_allow_html=True)
-    url = image_public_url(img)
-    if url:
-        st.image(url, width=width)
+    if img.get("data"):
+        st.image(img["data"], width=width)
     else:
         st.write(f"Image: {img['filename']} (not accessible)")
 
-def _reactions_html(summary: Dict[str, int]) -> str:
-    chips = [f'<span class="reaction-chip">{e} {summary.get(e, 0)}</span>'
-             for e in ALLOWED_EMOJIS if summary.get(e, 0)]
-    return f'<div class="reaction-bar">{"".join(chips)}</div>' if chips else ""
 
-def _caption_card_html(c: Dict, *, is_winner=False, vote_count: Optional[int] = None,
-                       reactions_summary: Optional[Dict[str, int]] = None) -> str:
-    winner_class = "caption-winner" if is_winner else ""
-    crown = "👑 " if is_winner else ""
-    vote_badge = f'<span class="vote-badge">🗳️ {vote_count}</span>' if vote_count is not None else ""
-    reacts = _reactions_html(reactions_summary or {})
+def caption_card_html(c: Dict) -> str:
+    winner_class = "caption-winner" if c.get("winner") else ""
+    crown = "👑 " if c.get("winner") else ""
+    name = html.escape(c["player_name"])
+    text = html.escape(c["text"])
     return f"""
     <div class="caption-card {winner_class}">
         {_avatar_html(c['player_name'])}
         <div style="flex:1;">
-            <div class="caption-player">{crown}{c['player_name']}{vote_badge}</div>
-            <div class="caption-text">"{c['text']}"</div>
-            {reacts}
+            <div class="caption-player">{crown}{name}</div>
+            <div class="caption-text">"{text}"</div>
         </div>
     </div>"""
 
-def render_caption_list(img: Dict, captions: List[Dict], *, role: str,
-                        player_id: Optional[str], phase: str):
-    """Render every caption for an image, with controls appropriate to the viewer and phase.
-    Host sees a delete button on each caption (all phases). Players vote (reveal only, not
-    their own caption) and react (reveal + results)."""
-    image_id = img["id"]
-    caption_ids = [c["id"] for c in captions]
-    scored = phase in ("reveal", "results")
 
-    vote_counts: Dict[str, int] = {}
-    my_vote: Optional[str] = None
-    if scored:
-        for v in get_votes_for_image(image_id):
-            vote_counts[v["caption_id"]] = vote_counts.get(v["caption_id"], 0) + 1
-            if player_id and v["voter_id"] == player_id:
-                my_vote = v["caption_id"]
+def room_chip_html() -> str:
+    return f"""
+    <div class="info-bar">
+        <span class="info-chip">Room: #{str(DB['room_id'])[:6].upper()}</span>
+    </div>"""
 
-    react_summary: Dict[str, Dict[str, int]] = {cid: {} for cid in caption_ids}
-    my_reacts: Dict[str, set] = {cid: set() for cid in caption_ids}
-    if scored:
-        for r in get_reactions_for_captions(caption_ids):
-            cid, e = r["caption_id"], r["emoji"]
-            react_summary.setdefault(cid, {})
-            react_summary[cid][e] = react_summary[cid].get(e, 0) + 1
-            if player_id and r["player_id"] == player_id:
-                my_reacts.setdefault(cid, set()).add(e)
 
-    winner_id = compute_winner_caption_id(image_id, captions) if phase == "results" else None
-
-    for c in captions:
-        cid = c["id"]
-        vc = vote_counts.get(cid, 0) if scored else None
-        card = _caption_card_html(
-            c,
-            is_winner=(cid == winner_id),
-            vote_count=vc,
-            reactions_summary=react_summary.get(cid, {}),
-        )
-        main_col, ctrl_col = st.columns([5, 2])
-        with main_col:
-            st.markdown(card, unsafe_allow_html=True)
-        with ctrl_col:
-            if role == "player" and phase == "reveal" and player_id:
-                if c.get("player_id") == player_id:
-                    st.caption("your caption")
-                else:
-                    voted = (my_vote == cid)
-                    if st.button("✅ Voted" if voted else "🗳️ Vote", key=f"vote_{cid}"):
-                        cast_vote(image_id, cid, player_id)
-                        st.rerun()
-            if role == "player" and scored and player_id:
-                rcols = st.columns(len(ALLOWED_EMOJIS))
-                for i, e in enumerate(ALLOWED_EMOJIS):
-                    active = e in my_reacts.get(cid, set())
-                    if rcols[i].button(f"{e}{'·' if active else ''}", key=f"react_{cid}_{i}"):
-                        toggle_reaction(cid, player_id, e)
-                        st.rerun()
-            if role == "host":
-                if st.button("🗑️", key=f"delcap_{cid}"):
-                    delete_caption_db(cid)
-                    st.rerun()
-
-# ── Main UI ─────────────────────────────────────────────────────────────────────
-room_id = _get_param("room_id", None)
-role = _get_param("role", "host")
-
-# ── Header ──────────────────────────────────────────────────────────────────────
+# ── Header + demo controls ──────────────────────────────────────────────────────
 st.markdown("""
 <h1>Caption The<br><span style="color:#00e5ff;">Moment</span></h1>
 """, unsafe_allow_html=True)
 
+bar_l, bar_m, bar_r = st.columns([3, 3, 2])
+with bar_l:
+    st.radio(
+        "View", ["Host", "Player"], key="view", horizontal=True,
+        format_func=lambda v: "🎮 Host view" if v == "Host" else "🙋 Player view",
+        label_visibility="collapsed",
+    )
+with bar_m:
+    st.caption("🧪 **Demo** — mock data, runs fully in your browser. "
+               "Nothing is saved; a page reload resets everything.")
+with bar_r:
+    if st.button("↺ Reset demo data"):
+        reset_demo()
+        st.rerun()
+
 st.markdown("---")
+role = "host" if st.session_state.view == "Host" else "player"
 
 # ── HOST UI ──────────────────────────────────────────────────────────────────────
 if role == "host":
-    if _is_game_finished(room_id):
+    if _is_game_finished():
         # ── FINISHED VIEW ──
         st.markdown('<div class="tag-label">🏁 Game Finished</div>', unsafe_allow_html=True)
         st.header("Results")
 
-        col_a, col_b = st.columns([1, 2])
-
-        with col_a:
-            with st.container():
-                if st.button("➕ Create New Room"):
-                    room_id = create_room_db()
-                    _set_params(room_id=room_id, role="host")
-                    st.rerun()
-
-                if room_id:
-                    st.markdown("**Shareable link for players:**")
-                    st.code(f"{APP_BASE_URL}/?room_id={room_id}&role=player")
-                else:
-                    st.info("Create a room first (press the button).")
-
-        imgs = list_room_images(room_id)
+        imgs = list_room_images()
         if not imgs:
             st.info("No images uploaded yet.")
         else:
             for img in imgs:
-                public_url = img.get("public_url")
-                if not public_url and img.get("storage_path"):
-                    try:
-                        signed = supabase.storage.from_(SUPABASE_BUCKET).create_signed_url(img["storage_path"], 3600)
-                        public_url = signed.get("signedURL") if isinstance(signed, dict) else None
-                    except Exception:
-                        pass
-
                 with st.container():
-                    st.markdown('<span class="plain-section-label">📸 The Moment</span>', unsafe_allow_html=True)
-
-                    if public_url:
-                        st.image(public_url, width=700)
-                    else:
-                        st.write(f"Image: {img['filename']} (not accessible)")
-
+                    render_image(img, width=700)
                     caps = get_captions_for_image(img["id"])
                     if caps:
                         st.markdown("""
@@ -842,26 +626,14 @@ if role == "host":
                             <div class="captions-panel-title">💬 Captions</div>
                         </div>
                         """, unsafe_allow_html=True)
-
                         for c in caps:
-                            winner_class = "caption-winner" if c['winner'] else ""
-                            crown = "👑 " if c['winner'] else ""
-                            st.markdown(f"""
-                            <div class="caption-card {winner_class}">
-                                {_avatar_html(c['player_name'])}
-                                <div>
-                                    <div class="caption-player">{crown}{c['player_name']}</div>
-                                    <div class="caption-text">"{c['text']}"</div>
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.markdown(caption_card_html(c), unsafe_allow_html=True)
                     else:
                         st.markdown("_No captions were submitted_")
-
                 st.markdown("---")
 
         if st.checkbox("I want to reopen or edit the game") and st.button("🔓 Reopen Game"):
-            _reopen_game(room_id)
+            _reopen_game()
             st.rerun()
 
     else:
@@ -871,49 +643,29 @@ if role == "host":
         with col_left:
             with st.container():
                 st.markdown('<span class="tag-label">🎮 Host Controls</span>', unsafe_allow_html=True)
-
-                if st.button("➕ Create New Room"):
-                    room_id = create_room_db()
-                    _set_params(room_id=room_id, role="host")
-                    st.rerun()
-
-                if room_id:
-                    st.markdown("**Shareable link for players:**")
-                    st.code(f"{APP_BASE_URL}/?room_id={room_id}&role=player")
-                    st.markdown(f"""
-                    <div class="info-bar">
-                        <span class="info-chip">Room: #{str(room_id)[:6].upper()}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.info("Create a room first (press the button).")
-
-        if not room_id:
-            st.stop()
+                st.markdown("**Players join via a shared link.** In this demo, use the "
+                            "**Player view** toggle above to play along.")
+                st.markdown(room_chip_html(), unsafe_allow_html=True)
 
         with col_right:
             with st.container():
                 st.markdown('<span class="tag-label">📤 Upload Images</span>', unsafe_allow_html=True)
 
-                with st.form("upload_form"):
+                with st.form("upload_form", clear_on_submit=True):
                     uploaded = st.file_uploader(
                         "Upload image(s)",
                         accept_multiple_files=True,
-                        type=['png', 'jpg', 'jpeg', 'gif']
+                        type=["png", "jpg", "jpeg", "gif"],
                     )
                     submitted = st.form_submit_button("Upload ▶")
 
                     if submitted and uploaded:
                         for f in uploaded:
-                            img_id, filename, storage_path, public_url, success = upload_image(room_id, f)
-                            if success:
-                                save_image_db(room_id, img_id, filename, storage_path, public_url)
-                                st.toast(f"✅ Uploaded {filename}")
-                            else:
-                                st.error(f"Upload failed for {filename}")
+                            add_image_db(f.name, f.read())
+                            st.toast(f"✅ Added {f.name} (local only)")
                         st.rerun()
 
-                st.text_input("📝 Photo context / title", "e.g. My recent trip to the Bahamas")
+                st.text_input("📝 Photo context / title", DB["title"])
 
         st.markdown("---")
         st.markdown("""
@@ -923,7 +675,7 @@ if role == "host":
         </div>
         """, unsafe_allow_html=True)
 
-        imgs = list_room_images(room_id)
+        imgs = list_room_images()
         if not imgs:
             st.info("No images yet — upload some above.")
         else:
@@ -932,21 +684,7 @@ if role == "host":
                     left, right = st.columns([4, 1])
 
                     with left:
-                        public_url = img.get("public_url")
-                        if not public_url and img.get("storage_path"):
-                            try:
-                                signed = supabase.storage.from_(SUPABASE_BUCKET).create_signed_url(img["storage_path"], 3600)
-                                public_url = signed.get("signedURL") if isinstance(signed, dict) else None
-                            except Exception:
-                                pass
-
-                        st.markdown('<span class="plain-section-label">📸 The Moment</span>', unsafe_allow_html=True)
-
-                        if public_url:
-                            st.image(public_url, width=800)
-                        else:
-                            st.write(f"Image: {img['filename']} (not accessible)")
-
+                        render_image(img, width=800)
                         caps = get_captions_for_image(img["id"])
                         if caps:
                             st.markdown("""
@@ -957,28 +695,19 @@ if role == "host":
                             """, unsafe_allow_html=True)
 
                             for c in caps:
-                                winner_class = "caption-winner" if c['winner'] else ""
-                                crown = "👑 " if c['winner'] else ""
                                 col1, col2 = st.columns([5, 1])
-
                                 with col1:
-                                    st.markdown(f"""
-                                    <div class="caption-card {winner_class}">
-                                        {_avatar_html(c['player_name'])}
-                                        <div>
-                                            <div class="caption-player">{crown}{c['player_name']}</div>
-                                            <div class="caption-text">"{c['text']}"</div>
-                                        </div>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-
+                                    st.markdown(caption_card_html(c), unsafe_allow_html=True)
                                 with col2:
-                                    if c['winner']:
+                                    if c["winner"]:
                                         st.write("👑")
                                     else:
                                         if st.button("👑", key=f"win_{c['id']}"):
-                                            _choose_winner_caption(img['id'], c['id'])
+                                            _choose_winner_caption(img["id"], c["id"])
                                             st.rerun()
+                                    if st.button("🗑️", key=f"delcap_{c['id']}"):
+                                        delete_caption_db(c["id"])
+                                        st.rerun()
                         else:
                             st.markdown("_No captions yet — waiting for players..._")
 
@@ -990,7 +719,7 @@ if role == "host":
                 st.markdown("---")
 
         if st.checkbox("✅ I have chosen a winner for every image") and st.button("🏁 Submit Winners"):
-            _finish_game(room_id)
+            _finish_game()
             st.rerun()
 
 # ── PLAYER UI ───────────────────────────────────────────────────────────────────
@@ -1003,13 +732,9 @@ else:
             player_name = st.text_input("Your name", value="Player1", label_visibility="collapsed")
 
     with col_status:
-        finished = _is_game_finished(room_id) if room_id else False
+        finished = _is_game_finished()
         status_text = "🏁 Game Finished" if finished else "⏳ Waiting for Host..."
         st.markdown(f'<div class="status-badge">{status_text}</div>', unsafe_allow_html=True)
-
-    if not room_id:
-        st.info("Open the link the host shared (it has ?room_id=...)")
-        st.stop()
 
     # How to play
     with st.container():
@@ -1024,7 +749,7 @@ else:
 
     st.markdown("---")
 
-    imgs = list_room_images(room_id)
+    imgs = list_room_images()
     if not imgs:
         st.info("No images uploaded yet. Ask the host to upload some.")
     else:
@@ -1033,38 +758,25 @@ else:
 
             with col_img:
                 with st.container():
-                    public_url = img.get("public_url")
-                    if not public_url and img.get("storage_path"):
-                        try:
-                            signed = supabase.storage.from_(SUPABASE_BUCKET).create_signed_url(img["storage_path"], 3600)
-                            public_url = signed.get("signedURL") if isinstance(signed, dict) else None
-                        except Exception:
-                            pass
+                    render_image(img, width=700)
 
-                    st.markdown('<span class="plain-section-label">📸 The Moment</span>', unsafe_allow_html=True)
-
-                    if public_url:
-                        st.image(public_url, width=700)
-                    else:
-                        st.write(f"Image: {img['filename']} (not accessible)")
-
-                    if not _is_game_finished(room_id):
+                    if not _is_game_finished():
                         st.markdown(
                             '<span class="plain-section-label purple">✏️ Your Caption</span>',
-                            unsafe_allow_html=True
+                            unsafe_allow_html=True,
                         )
-
-                        with st.form(f"form_{img['id']}"):
+                        with st.form(f"form_{img['id']}", clear_on_submit=True):
                             caption_text = st.text_input(
-                                "",
+                                "caption",
                                 placeholder="Type something funny here...",
                                 key=f"input_{img['id']}",
-                                label_visibility="collapsed"
+                                label_visibility="collapsed",
                             )
                             submitted = st.form_submit_button("SUBMIT ▶")
 
                             if submitted and caption_text.strip():
-                                add_caption_db(img["id"], player_name, caption_text.strip())
+                                add_caption_db(img["id"], player_name.strip() or "Player1",
+                                               caption_text.strip())
                                 st.toast("✅ Caption submitted!")
                                 st.rerun()
 
@@ -1080,17 +792,7 @@ else:
                     caps = get_captions_for_image(img["id"])
                     if caps:
                         for c in caps:
-                            winner_class = "caption-winner" if c.get('winner') else ""
-                            crown = "👑 " if c.get('winner') else ""
-                            st.markdown(f"""
-                            <div class="caption-card {winner_class}">
-                                {_avatar_html(c['player_name'])}
-                                <div>
-                                    <div class="caption-player">{crown}{c['player_name']}</div>
-                                    <div class="caption-text">"{c['text']}"</div>
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.markdown(caption_card_html(c), unsafe_allow_html=True)
                     else:
                         st.markdown("""
                         <div class="caption-card" style="opacity:0.5; border-style: dashed;">
@@ -1099,9 +801,4 @@ else:
                         """, unsafe_allow_html=True)
 
     # Footer info bar
-    if room_id:
-        st.markdown(f"""
-        <div style="margin-top:2rem;" class="info-bar">
-            <span class="info-chip">Room: #{str(room_id)[:6].upper()}</span>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:2rem;">{room_chip_html()}</div>', unsafe_allow_html=True)

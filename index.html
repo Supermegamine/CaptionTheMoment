@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caption The Moment — Demo</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@stlite/browser@1.12.1/build/stlite.css"
+    />
+    <style>
+      body { margin: 0; background: #2a0f4a; }
+    </style>
+  </head>
+  <body>
+    <!--
+      The whole Streamlit app runs in the browser (Pyodide / WebAssembly).
+      Files listed here are copied into the in-browser filesystem at startup.
+      To add a mock image: put it in demo_assets/, list it here, and in mock_data.py.
+    -->
+    <streamlit-app src="app.py">
+      <app-file name="mock_data.py" url="mock_data.py"></app-file>
+      <app-file name="demo_assets/katze.png" url="demo_assets/katze.png"></app-file>
+      <app-file name="demo_assets/hund.png" url="demo_assets/hund.png"></app-file>
+      <app-file name="demo_assets/pinguine.png" url="demo_assets/pinguine.png"></app-file>
+      <app-file name="demo_assets/moewe.png" url="demo_assets/moewe.png"></app-file>
+    </streamlit-app>
+    <script
+      type="module"
+      src="https://cdn.jsdelivr.net/npm/@stlite/browser@1.12.1/build/stlite.js"
+    ></script>
+  </body>
+</html>
